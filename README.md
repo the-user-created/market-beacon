@@ -1,124 +1,177 @@
-# Market Beacon
+# Market Beacon - Bitget Trade Analyzer
 
-A Python bot to retrieve and analyze trade data from the Bitget cryptocurrency exchange.
+[![CI/CD Pipeline](https://img.shields.io/github/actions/workflow/status/the-user-created/market-beacon/dev_ci.yml?branch=main&style=flat-square&logo=githubactions&logoColor=white)](https://github.com/the-user-created/market-beacon/actions/workflows/dev_ci.yml)
+[![Python Version](https://img.shields.io/badge/python-3.12-blue?style=flat-square&logo=python&logoColor=white)](https://www.python.org/downloads/release/python-3120/)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+[![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white&style=flat-square)](https://github.com/pre-commit/pre-commit)
+[![Gitleaks](https://img.shields.io/badge/protected%20by-gitleaks-blue?style=flat-square)](https://github.com/gitleaks/gitleaks)
+[![License: MIT](https://img.shields.io/github/license/the-user-created/market-beacon?style=flat-square)](https://opensource.org/licenses/MIT)
 
-## Features
+Market Beacon is a Python-based tool designed to connect to the Bitget
+cryptocurrency exchange via its API. It retrieves real-time and
+historical trade data for specified cryptocurrency pairs, calculates key
+trading statistics and metrics, and provides valuable market insights.
 
-- **Modern Tooling**: Uses `Ruff` for extremely fast linting, formatting, and import sorting.
-- **Robust Packaging**: Managed with `pyproject.toml` and `setuptools` following PEP 621.
-- **Automated Quality Checks**: Pre-commit hooks for automated code quality enforcement.
-- **Continuous Integration**: GitHub Actions workflow for automated testing and linting on every push.
-- **Containerized**: Multi-stage `Dockerfile` for lean, secure, and reproducible production images.
-- **Developer-Friendly**: `Makefile` for easy access to common commands like installation, testing, and running.
+## ✨ Key Features
 
-## Getting Started
+- **Secure API Integration**: Safely connects to the Bitget API using
+  best practices for key management via environment variables.
+- **Trade Data Retrieval**: Fetches recent trade history for any specified
+  trading symbol (e.g., `BTCUSDT`).
+- **Statistical Analysis (Planned)**: Will calculate metrics like Volume
+  Weighted Average Price (VWAP), moving averages, and trade frequency.
+- **Modern Tooling**: Built with a professional-grade stack including
+  Docker, `pre-commit` for quality control, and `ruff` for
+  high-performance linting and formatting.
+- **CI/CD Ready**: Integrated with GitHub Actions for continuous
+  integration and testing.
+
+## 🚀 Project Status
+
+This project is currently in the initial development phase. The core
+structure, configuration, and CI/CD pipeline are established. The next
+steps involve implementing the API client logic, data processing, and
+statistical calculations.
+
+## 🏁 Getting Started
+
+Follow these steps to get your local development environment set up.
 
 ### Prerequisites
 
-- Python 3.12
-- Docker (for containerization)
-- `make` (for using the Makefile commands)
+- [Git](https://git-scm.com/)
+- [Python 3.12](https://www.python.org/downloads/release/python-3120/)
+- [Docker](https://www.docker.com/) (Optional, for containerized execution)
+- [Make](https://www.gnu.org/software/make/)
 
 ### Installation
 
 1. **Clone the repository:**
-   ```bash
+
+   ```sh
    git clone https://github.com/the-user-created/market-beacon.git
    cd market-beacon
    ```
 
-2. **Create virtual environment and install dependencies:**
-   This command will create a local virtual environment (`.market-beacon-venv/`) and install all required main and
-   development packages.
-   ```bash
+2. **Configure API Credentials:**
+
+   The application requires API credentials to connect to Bitget. Create a
+   `.env` file from the example and add your keys.
+
+   ```sh
+   cp .env.example .env
+   ```
+
+3. **Install the Project:**
+
+   Simply run the `install` command from the Makefile. This will create a
+   virtual environment in `./.market-beacon-venv`, install all
+   dependencies, and set up the pre-commit hooks.
+
+   ```sh
    make install
    ```
 
-3. **Activate the virtual environment:**
-   ```bash
+   Your environment is now ready! If you aren't using the `make` commands
+   for subsequent actions, remember to activate the virtual environment:
+
+   ```sh
+   # Activate on macOS/Linux
    source .market-beacon-venv/bin/activate
+   # Activate on Windows
+   .\.market-beacon-venv\Scripts\activate
    ```
 
-### Usage
+## 🤖 Usage
 
-To run the application locally:
+You can run the application directly through the `Makefile` or via Python's
+module execution flag.
 
-```bash
+**Using Make (Recommended):**
+
+```sh
+# Run with the default symbol (BTCUSDT)
 make run
+
+# Run with a custom symbol
+make run args="--symbol ETHUSDT"
 ```
 
-You can also pass arguments to the application:
+**Using Python:**
 
-```bash
-make run args="--symbol BTCUSDT"
+```sh
+# Ensure the virtual environment is activated
+source .market-beacon-venv/bin/activate
+
+# Run with a custom symbol
+python -m market_beacon --symbol BTCUSDT
 ```
 
-## Development
+## 🧰 Development & Tooling
 
-This project uses a suite of tools to ensure code quality and consistency.
+### Makefile Commands
 
-### Code Formatting and Linting
+This project includes a `Makefile` to streamline common development tasks.
+Run `make help` to see a full list of commands with their descriptions.
 
-`Ruff` is used for linting and formatting. The `Makefile` provides a simple command to apply formatting and fix lint
-errors automatically.
+- `make install`: Sets up the complete development environment.
+- `make lint`: Formats code and lints for errors, applying automatic
+  fixes.
+- `make check`: Runs the formatter and linter in check-only mode (ideal
+  for CI).
+- `make test`: Executes the test suite using `pytest`.
+- `make run`: Runs the main application. Pass arguments like so:
+  `make run args="--symbol ETHUSDT"`.
+- `make version-[major|minor|patch]`: Bumps the project version using
+  `bump-my-version`.
+- `make docker-build`: Builds the production Docker image.
+- `make docker-run`: Runs the application inside a Docker container.
+- `make clean`: Removes the virtual environment and all cache files.
 
-```bash
-make lint
-```
+### Code Quality Workflow
 
-To just check for issues without applying changes (as is done in CI):
+We use a suite of tools to maintain high code quality, all of which are
+managed by `pre-commit` and can be run via the `Makefile`.
 
-```bash
-make check
-```
+- **Linting and Formatting with Ruff:** `ruff` is used for both formatting
+  and linting. The `make lint` command will automatically fix most issues.
+- **Spell Checking with Codespell:** `codespell` runs automatically on
+  commit to catch common misspellings in code and documentation.
+- **Secret Scanning with Gitleaks:** The CI pipeline includes a step to
+  run `gitleaks`, which scans for any accidentally committed secrets.
 
-The pre-commit hooks will run these checks automatically every time you commit.
+## 🛠️ Tooling Stack
 
-### Running Tests
+This project is built with a focus on modern development practices and
+automation.
 
-Tests are managed with `pytest`. To run the full test suite:
+| Tool                                                                      | Purpose                                                                    |
+|---------------------------------------------------------------------------|----------------------------------------------------------------------------|
+| [**pip**](https://pip.pypa.io/en/stable/) & `pyproject.toml`              | Dependency and project management (PEP 621).                               |
+| [**Ruff**](https://github.com/astral-sh/ruff)                             | High-performance linting, formatting, and import sorting.                  |
+| [**pytest**](https://docs.pytest.org/)                                    | A powerful framework for writing and running automated tests.              |
+| [**pre-commit**](https://pre-commit.com/)                                 | A framework for managing and maintaining multi-language pre-commit hooks.  |
+| [**bump-my-version**](https://github.com/callowayproject/bump-my-version) | A tool for version string management and automated bumping.                |
+| [**codespell**](https://github.com/codespell-project/codespell)           | Automated spell checking for source code and documentation.                |
+| [**gitleaks**](https://github.com/gitleaks/gitleaks)                      | Scans git history for secrets and sensitive data.                          |
+| [**GitHub Actions**](https://github.com/features/actions)                 | Continuous Integration (CI) to run tests and quality checks on every push. |
+| [**Docker**](https://www.docker.com/)                                     | Containerization for consistent development and deployment environments.   |
+| [**Makefile**](https://www.gnu.org/software/make/manual/make.html)        | A simple command runner for automating common development tasks.           |
 
-```bash
-make test
-```
+## ❤️ Contributing
 
-This will run all files matching `tests/test_*.py`.
+Contributions are welcome! If you'd like to contribute, please follow
+these steps:
 
-### Versioning
+1. Fork the repository.
+2. Create a new branch (`git checkout -b feature/your-feature-name`).
+3. Make your changes and commit them with a descriptive message.
+4. Push to your branch (`git push origin feature/your-feature-name`).
+5. Create a new Pull Request.
 
-The project version is managed in `CODE_VERSION.cfg` and `pyproject.toml`. Use the `Makefile` to increment the version
-number according to semantic versioning. These commands will create a new git commit and tag.
+Please also feel free to open an issue for any bugs or feature requests.
 
-```bash
-make version-patch  # For bug fixes (0.0.1 -> 0.0.2)
-make version-minor  # For new features (0.1.0 -> 0.2.0)
-make version-major  # For breaking changes (1.0.0 -> 2.0.0)
-```
+## 📄 License
 
-## Running with Docker
-
-The project includes a multi-stage `Dockerfile` for building optimized production images.
-
-1. **Build the Docker image:**
-   ```bash
-   make docker-build
-   ```
-   *This is equivalent to `docker build -t market-beacon:latest .`*
-
-2. **Run the Docker container:**
-   ```bash
-   make docker-run
-   ```
-   *This is equivalent to `docker run --rm -it market-beacon:latest`*
-
-You can also run tests or other commands inside the container:
-
-```bash
-docker run --rm -it market-beacon:latest test
-docker run --rm -it market-beacon:latest bash
-```
-
-## Continuous Integration
-
-The CI pipeline is defined in `.github/workflows/dev_ci.yml`. It automatically runs `make check` and `make test` on all
-pushes and pull requests to the `main` branch, ensuring that code merged into the main branch meets quality standards.
+This project is licensed under the MIT License. See the [LICENSE](LICENSE)
+file for details.
