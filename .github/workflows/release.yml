@@ -15,9 +15,6 @@ jobs:
     name: Create GitHub Release
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
       - name: Draft and Publish Release
         uses: release-drafter/release-drafter@v6.1.0
         with:
