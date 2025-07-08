@@ -21,8 +21,8 @@ trading statistics and metrics, and provides valuable market insights.
 - **Statistical Analysis (Planned)**: Will calculate metrics like Volume
   Weighted Average Price (VWAP), moving averages, and trade frequency.
 - **Modern Tooling**: Built with a professional-grade stack including
-  Docker, `pre-commit` for quality control, and `ruff` for
-  high-performance linting and formatting.
+  Docker, `pre-commit` for quality control, and `uv` for
+  high-performance dependency management.
 - **CI/CD Ready**: Integrated with GitHub Actions for continuous
   integration and testing.
 
@@ -41,6 +41,7 @@ Follow these steps to get your local development environment set up.
 
 - [Git](https://git-scm.com/)
 - [Python 3.12](https://www.python.org/downloads/release/python-3120/)
+- [uv](https://github.com/astral-sh/uv) (Python package manager)
 - [Docker](https://www.docker.com/) (Optional, for containerized execution)
 - [Make](https://www.gnu.org/software/make/)
 
@@ -64,9 +65,9 @@ Follow these steps to get your local development environment set up.
 
 3. **Install the Project:**
 
-   Simply run the `install` command from the Makefile. This will create a
-   virtual environment in `./.market-beacon-venv`, install all
-   dependencies, and set up the pre-commit hooks.
+   Simply run the `install` command from the Makefile. This uses `uv` to
+   create a virtual environment in `./.venv`, install all dependencies
+   from `uv.lock`, and set up the pre-commit hooks.
 
    ```sh
    make install
@@ -77,15 +78,14 @@ Follow these steps to get your local development environment set up.
 
    ```sh
    # Activate on macOS/Linux
-   source .market-beacon-venv/bin/activate
+   source .venv/bin/activate
    # Activate on Windows
-   .\.market-beacon-venv\Scripts\activate
+   .\.venv\Scripts\activate
    ```
 
 ## 🤖 Usage
 
-You can run the application directly through the `Makefile` or via Python's
-module execution flag.
+You can run the application directly through the `Makefile` or via `uv run`.
 
 **Using Make (Recommended):**
 
@@ -97,14 +97,14 @@ make run
 make run args="--symbol ETHUSDT"
 ```
 
-**Using Python:**
+**Using uv:**
 
 ```sh
 # Ensure the virtual environment is activated
-source .market-beacon-venv/bin/activate
+source .venv/bin/activate
 
 # Run with a custom symbol
-python -m market_beacon --symbol BTCUSDT
+uv run python -m market_beacon --symbol BTCUSDT
 ```
 
 ## 🧰 Development & Tooling
@@ -114,7 +114,7 @@ python -m market_beacon --symbol BTCUSDT
 This project includes a `Makefile` to streamline common development tasks.
 Run `make help` to see a full list of commands with their descriptions.
 
-- `make install`: Sets up the complete development environment.
+- `make install`: Sets up the complete development environment using `uv`.
 - `make lint`: Formats code and lints for errors, applying automatic
   fixes.
 - `make check`: Runs the formatter and linter in check-only mode (ideal
@@ -147,7 +147,7 @@ automation.
 
 | Tool                                                                      | Purpose                                                                    |
 |---------------------------------------------------------------------------|----------------------------------------------------------------------------|
-| [**pip**](https://pip.pypa.io/en/stable/) & `pyproject.toml`              | Dependency and project management (PEP 621).                               |
+| [**uv**](https://github.com/astral-sh/uv) & `pyproject.toml`              | High-performance dependency and project management.                        |
 | [**Ruff**](https://github.com/astral-sh/ruff)                             | High-performance linting, formatting, and import sorting.                  |
 | [**pytest**](https://docs.pytest.org/)                                    | A powerful framework for writing and running automated tests.              |
 | [**pre-commit**](https://pre-commit.com/)                                 | A framework for managing and maintaining multi-language pre-commit hooks.  |

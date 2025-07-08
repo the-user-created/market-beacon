@@ -1,63 +1,82 @@
-# =================
+# ==============================================================================
+#  ARG - Define Build-Time Variables
+# ==============================================================================
+ARG PYTHON_VERSION=3.12
+ARG PYTHON_VARIANT=slim
+ARG APP_VERSION=0.0.0
+
+# ==============================================================================
 #  Builder Stage
-# =================
-# This stage installs dependencies and builds the package.
-FROM python:3.12-slim AS builder
+# ==============================================================================
+FROM python:${PYTHON_VERSION}-${PYTHON_VARIANT} AS builder
 
-# Set the working directory
-WORKDIR /usr/src/app
+ARG APP_VERSION
 
-# Prevent python from writing pyc files and buffer output
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
+LABEL org.opencontainers.image.title="Market Beacon Builder"
+LABEL org.opencontainers.image.description="Builder stage for the Market Beacon application."
+LABEL org.opencontainers.image.version=${APP_VERSION}
+LABEL org.opencontainers.image.authors="David Young <davidsamuelyoung@protonmail.com>"
+LABEL org.opencontainers.image.url="https://github.com/the-user-created/market-beacon"
+LABEL org.opencontainers.image.source="https://github.com/the-user-created/market-beacon.git"
 
-# Create a virtual environment to isolate dependencies
-RUN python -m venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-# Upgrade pip
-RUN pip install --no-cache-dir --upgrade pip
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-# Copy all files required for the build
-COPY pyproject.toml ./
+WORKDIR /app
+
+COPY pyproject.toml uv.lock ./
+RUN set -e; \
+    echo "--> Syncing dependencies..." && \
+    uv sync --locked --no-cache --no-install-project --all-extras --dev
+
 COPY src/ ./src/
 
-# Install the project and its dependencies into the venv
-RUN pip install --no-cache-dir .
+RUN set -e; \
+    echo "--> Syncing application..." && \
+    uv sync --locked --no-cache --no-editable
 
-# =================
-#   Final Stage
-# =================
-# This stage creates the final, lean production image.
-FROM python:3.12-slim
+# ==============================================================================
+#  Final Stage
+# ==============================================================================
+FROM python:${PYTHON_VERSION}-${PYTHON_VARIANT}
 
-# Create a non-privileged user for security
-RUN addgroup --system app && adduser --system --group app
+ARG APP_VERSION
+ARG BUILD_DATE
+
+LABEL org.opencontainers.image.title="Market Beacon"
+LABEL org.opencontainers.image.description="A Python bot to retrieve and analyze trade data from the Bitget exchange."
+LABEL org.opencontainers.image.version=${APP_VERSION}
+LABEL org.opencontainers.image.authors="David Young <davidsamuelyoung@protonmail.com>"
+LABEL org.opencontainers.image.url="https://github.com/the-user-created/market-beacon"
+LABEL org.opencontainers.image.documentation="https://github.com/the-user-created/market-beacon/blob/main/README.md"
+LABEL org.opencontainers.image.source="https://github.com/the-user-created/market-beacon.git"
+
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+ENV HOME=/home/app \
+    PATH="/opt/venv/bin:$PATH"
+
+RUN set -e; \
+    addgroup --system app && \
+    adduser --system --group app
+
 WORKDIR /home/app/market-beacon
-ENV HOME=/home/app
 
-# Copy the virtual environment with installed packages from the builder stage
-COPY --from=builder /opt/venv /opt/venv
-
-# Copy the entrypoint script
+COPY --from=builder /app/.venv /opt/venv
 COPY entrypoint.sh ./entrypoint.sh
-RUN chmod +x ./entrypoint.sh
 
-# Activate the virtual environment for subsequent commands
-ENV PATH="/opt/venv/bin:$PATH"
+RUN set -e; \
+    chmod +x ./entrypoint.sh && \
+    chown -R app:app /home/app/market-beacon /opt/venv
 
-# Change ownership of the app directory to the non-root user
-RUN chown -R app:app .
-
-# Switch to the non-privileged user
 USER app
 
-# Healthcheck to ensure the application is importable
+STOPSIGNAL SIGTERM
+
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD python -c "from market_beacon import __main__"
 
-# Set the entrypoint for the container
 ENTRYPOINT ["./entrypoint.sh"]
 
-# Default command to run the application
 CMD ["run"]

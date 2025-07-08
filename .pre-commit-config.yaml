@@ -33,6 +33,11 @@ repos:
       - id: ruff-format
         name: ruff-formatter
 
+  - repo: https://github.com/astral-sh/uv-pre-commit
+    rev: 0.7.19
+    hooks:
+      - id: uv-lock
+
   - repo: https://github.com/codespell-project/codespell
     rev: v2.4.1
     hooks:

@@ -6,25 +6,16 @@
 # ==============================================================================
 PACKAGE_NAME := market-beacon
 IMAGE_NAME := market-beacon
-VENV_NAME := ".$(PACKAGE_NAME)-venv"
-PYTHON := $(VENV_NAME)/bin/python
-BUMP := $(VENV_NAME)/bin/bump-my-version
+PROJECT_VERSION := $(shell awk '/^\[project\]$$/{f=1} f==1&&/^version/{print;exit}' pyproject.toml | cut -d '"' -f 2)
 
 # ==============================================================================
 #                              Setup & Installation
 # ==============================================================================
-venv: ## Creates development virtual environment.
-	@echo "--> Creating virtual environment..."
-	python3.12 -m venv $(VENV_NAME)
-	@echo "--> Upgrading pip..."
-	@$(PYTHON) -m pip install -U pip setuptools wheel
-	@echo "--> venv created in $(VENV_NAME)"
-
-install: venv ## Installs project dependencies for development.
-	@echo "--> Installing dependencies from pyproject.toml..."
-	@$(PYTHON) -m pip install -e ".[dev]"
+install: ## Installs project dependencies and sets up the environment with uv.
+	@echo "--> Syncing environment with uv.lock..."
+	@uv sync --all-extras --dev
 	@echo "--> Installing pre-commit hooks..."
-	@$(VENV_NAME)/bin/pre-commit install
+	@uv run pre-commit install
 	@echo "--> Installation complete."
 
 # ==============================================================================
@@ -32,45 +23,49 @@ install: venv ## Installs project dependencies for development.
 # ==============================================================================
 lint: ## Runs the ruff linter and formatter (with auto-fix).
 	@echo "--> Running Ruff Formatter..."
-	@$(PYTHON) -m ruff format .
+	@uv run ruff format .
 	@echo "--> Running Ruff Linter (with auto-fix)..."
-	@$(PYTHON) -m ruff check --fix .
+	@uv run ruff check --fix .
 
 check: ## Runs ruff in check-only mode (for CI).
 	@echo "--> Checking formatting with Ruff..."
-	@$(PYTHON) -m ruff format . --check
+	@uv run ruff format . --check
 	@echo "--> Checking linting with Ruff..."
-	@$(PYTHON) -m ruff check .
+	@uv run ruff check .
 
 test: ## Runs all tests with pytest.
 	@echo "--> Running tests with pytest..."
-	@$(PYTHON) -m pytest tests/
+	@uv run pytest tests/
 
 # ==============================================================================
 #                              Versioning
 # ==============================================================================
 version-major: ## Bumps the major version number.
 	@echo "--> Bumping MAJOR version..."
-	@$(BUMP) bump major
+	@uv run bump-my-version bump major
 
 version-minor: ## Bumps the minor version number.
 	@echo "--> Bumping MINOR version..."
-	@$(BUMP) bump minor
+	@uv run bump-my-version bump minor
 
 version-patch: ## Bumps the patch version number.
 	@echo "--> Bumping PATCH version..."
-	@$(BUMP) bump patch
+	@uv run bump-my-version bump patch
 
 # ==============================================================================
 #                       Application & Docker Execution
 # ==============================================================================
 run: ## Runs the application. Pass args with 'make run args="..."'.
 	@echo "--> Running application: $(PACKAGE_NAME)"
-	@$(PYTHON) -m market_beacon $(args)
+	@uv run python -m market_beacon $(args)
 
-docker-build: ## Builds the Docker image.
-	@echo "--> Building Docker image: $(IMAGE_NAME):latest"
-	@docker build -t $(IMAGE_NAME):latest .
+docker-build: ## Builds the Docker image with the correct version.
+	@echo "--> Building Docker image: $(IMAGE_NAME):latest and $(IMAGE_NAME):$(PROJECT_VERSION)"
+	@docker build \
+	  --build-arg APP_VERSION=$(PROJECT_VERSION) \
+	  -t $(IMAGE_NAME):latest \
+	  -t $(IMAGE_NAME):$(PROJECT_VERSION) \
+	  .
 
 docker-run: ## Runs the application inside a Docker container.
 	@echo "--> Running Docker container: $(IMAGE_NAME)"
@@ -81,7 +76,7 @@ docker-run: ## Runs the application inside a Docker container.
 # ==============================================================================
 clean: ## Removes virtual environment and cache files.
 	@echo "--> Cleaning up..."
-	rm -rf $(VENV_NAME)
+	rm -rf .venv/
 	rm -rf .ruff_cache/ .pytest_cache/
 	find . -type d -name "__pycache__" -exec rm -rf {} +
 	find . -type f -name "*.pyc" -delete
