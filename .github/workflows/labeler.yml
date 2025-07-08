@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Label PR based on title
-        uses: release-drafter/release-drafter@v6.0.0
+        uses: release-drafter/release-drafter@v6.1.0
         with:
           disable-releaser: true
           config-name: release-drafter.yml
