@@ -1,32 +1,24 @@
 # Market Beacon - Bitget Trade Analyzer
 
 <p align="center">
-  <!-- Project & Status -->
-  <a href="https://github.com/the-user-created/market-beacon/releases/latest">
-    <img alt="Latest Release" src="https://img.shields.io/github/v/release/the-user-created/market-beacon?style=flat-square&logo=github&logoColor=white">
-  </a>
-  <a href="https://github.com/the-user-created/market-beacon/blob/main/LICENSE">
-    <img alt="License" src="https://img.shields.io/github/license/the-user-created/market-beacon?style=flat-square">
-  </a>
-  <!-- Build & Quality -->
   <a href="https://github.com/the-user-created/market-beacon/actions/workflows/ci.yml">
-    <img alt="CI Pipeline" src="https://img.shields.io/github/actions/workflow/status/the-user-created/market-beacon/ci.yml?branch=main&style=flat-square&logo=githubactions&logoColor=white">
+    <img alt="CI Pipeline" src="https://img.shields.io/github/actions/workflow/status/the-user-created/market-beacon/ci.yml?branch=main&logo=githubactions&logoColor=white">
   </a>
-  <a href="https://github.com/the-user-created/market-beacon/pkgs/container/market-beacon">
-    <img alt="Docker Image" src="https://img.shields.io/github/v/release/the-user-created/market-beacon?label=ghcr.io&style=flat-square&logo=docker&logoColor=white">
-  </a>
-  <!-- Code Style & Tooling -->
   <a href="https://www.python.org/downloads/release/python-3120/">
-    <img alt="Python Version" src="https://img.shields.io/badge/python-3.12-blue?style=flat-square&logo=python&logoColor=white">
+    <img alt="Python Version" src="https://img.shields.io/badge/python-3.12-blue.svg?logo=python&logoColor=white">
+  </a>
+  <a href="https://pre-commit.com/">
+    <img alt="pre-commit" src="https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white">
+  </a>
+<br>
+  <a href="https://conventionalcommits.org">
+    <img alt="Conventional Commits" src="https://img.shields.io/badge/Conventional%20Commits-1.0.0-yellow.svg">
   </a>
   <a href="https://github.com/astral-sh/ruff">
-    <img alt="Ruff" src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json">
+    <img alt="Code style: ruff" src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json">
   </a>
-  <a href="https://github.com/pre-commit/pre-commit">
-    <img alt="pre-commit" src="https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white&style=flat-square">
-  </a>
-  <a href="https://conventionalcommits.org">
-    <img alt="Conventional Commits" src="https://img.shields.io/badge/Conventional%20Commits-1.0.0-yellow.svg?style=flat-square">
+  <a href="https://github.com/the-user-created/market-beacon/blob/main/Dockerfile">
+    <img alt="Docker" src="https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white">
   </a>
 </p>
 
@@ -166,7 +158,7 @@ commands with their descriptions.
 This project is built with a focus on modern development practices and automation.
 
 | Tool                                                                      | Purpose                                                                    |
-| ------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+|---------------------------------------------------------------------------|----------------------------------------------------------------------------|
 | [**uv**](https://github.com/astral-sh/uv) & `pyproject.toml`              | High-performance dependency and project management.                        |
 | [**Ruff**](https://github.com/astral-sh/ruff)                             | High-performance linting, formatting, and import sorting.                  |
 | [**pytest**](https://docs.pytest.org/)                                    | A powerful framework for writing and running automated tests.              |
