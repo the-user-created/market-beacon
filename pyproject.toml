@@ -98,5 +98,5 @@ where = ["src"]
 # --------------------------------- Codespell ----------------------------------
 [tool.codespell]
 skip = "*.lock,*.json,*.svg"
-ignore-words-list = "sur,alo,larg,gam,hig"
+ignore-words-list = "sur,alo,larg,gam,hig,commitish"
 quiet-level = 2
