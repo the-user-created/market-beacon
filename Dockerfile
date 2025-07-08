@@ -1,20 +1,66 @@
-# Use an official Python runtime as a parent image
-FROM python:3.12-slim
+# =================
+#  Builder Stage
+# =================
+# This stage installs dependencies and builds the package.
+FROM python:3.12-slim AS builder
 
-# Set the working directory in the container
+# Set the working directory
 WORKDIR /usr/src/app
 
-# Copy the current directory contents into the container at /usr/src/app
+# Prevent python from writing pyc files and buffer output
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+# Install build dependencies (if any, e.g. for C extensions)
+# RUN apt-get update && apt-get install -y --no-install-recommends gcc
+
+# Copy the entire project context (respecting .dockerignore)
+# This includes pyproject.toml, src/, README.md, LICENSE, etc.
 COPY . .
 
-# Install any needed packages specified in requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
+# Create a virtual environment to isolate dependencies
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
 
-# Make port 8000 available to the world outside this container
-EXPOSE 8000
+# Install the project and its dependencies into the venv
+# Using --no-cache-dir to keep the layer small
+RUN pip install --no-cache-dir .
 
-# Define environment variable
-ENV NAME World
+# =================
+#   Final Stage
+# =================
+# This stage creates the final, lean production image.
+FROM python:3.12-slim
 
-# Run app.py when the container launches
-CMD ["python", "./template.py"]
+# Create a non-privileged user for security
+RUN addgroup --system app && adduser --system --group app
+WORKDIR /home/app/market-beacon
+ENV HOME=/home/app
+
+# Copy the virtual environment with installed packages from the builder stage
+COPY --from=builder /opt/venv /opt/venv
+
+# Copy the application source code from the builder stage
+# This ensures we only copy what was part of the build
+COPY --from=builder /usr/src/app/src/market_beacon/ ./src/market_beacon/
+COPY --from=builder /usr/src/app/entrypoint.sh ./entrypoint.sh
+RUN chmod +x ./entrypoint.sh
+
+# Activate the virtual environment for subsequent commands
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Change ownership of the app directory to the non-root user
+RUN chown -R app:app .
+
+# Switch to the non-privileged user
+USER app
+
+# Basic healthcheck to ensure the container is running
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD python -c "import sys; sys.exit(0)"
+
+# Set the entrypoint for the container
+ENTRYPOINT ["./entrypoint.sh"]
+
+# Default command to run the application
+CMD ["run"]

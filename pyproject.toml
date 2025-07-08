@@ -1,28 +1,85 @@
-# Black formatting
-[tool.black]
-line-length = 120
-include = '\.pyi?$'
-exclude = '''
-/(
-      \.eggs
-    | \.git
-    | \.hg
-    | \.mypy_cache
-    | \.tox
-    | \.market-beacon-venv
-    | \.venv
-    | _build
-    | buck-out
-    | build
-    | dist
-  )/
-'''
+# ==============================================================================
+#                              Build System
+# ==============================================================================
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
 
-# iSort
-[tool.isort]
-profile = "black"
-line_length = 79
-multi_line_output = 3
-include_trailing_comma = true
-skip_gitignore = true
-virtual_env = ".market-beacon-venv"
+# ==============================================================================
+#                               Project
+# ==============================================================================
+[project]
+name = "market-beacon"
+dynamic = ["version"]
+description = "A Python bot to retrieve and analyze trade data from the Bitget exchange."
+authors = [
+    { name = "David Young", email = "davidsamuelyoung@protonmail.com" },
+]
+readme = "README.md"
+requires-python = ">=3.12"
+license = "MIT"
+license-files = ["LICENSE"]
+keywords = ["cryptocurrency", "bot", "trading", "bitget", "api"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Office/Business :: Financial :: Investment",
+]
+
+dependencies = [
+    "loguru>=0.7.2",
+    "requests>=2.31.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "bump-pydantic==0.5.0",
+    "pytest>=8.0.0",
+    "pytest-cov>=4.1.0",
+    "ruff>=0.5.0",
+    "pre-commit>=3.6.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/the-user-created/market-beacon"
+Issues = "https://github.com/the-user-created/market-beacon/issues"
+Repository = "https://github.com/the-user-created/market-beacon"
+
+
+# ==============================================================================
+#                                 Tools
+# ==============================================================================
+
+# --------------------------------- Ruff ---------------------------------------
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src"]
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "C4", "UP", "RUF"]
+
+[tool.ruff.format]
+quote-style = "double"
+skip-magic-trailing-comma = false
+
+# ------------------------------ bump-pydantic ---------------------------------
+[tool.bumpversion]
+current_version = "0.0.0"
+commit = true
+tag = true
+message = "chore(version): Bump version to {new_version}"
+
+[[tool.bumpversion.files]]
+filename = "CODE_VERSION.cfg"
+
+[[tool.bumpversion.files]]
+filename = "pyproject.toml"
+search = 'current_version = "{current_version}"'
+replace = 'current_version = "{new_version}"'
+
+# ------------------------------ setuptools ------------------------------------
+[tool.setuptools.packages.find]
+where = ["src"]

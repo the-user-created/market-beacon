@@ -1,23 +1,31 @@
-# Ignore everything
-*
+# Git and version control
+.git/
+.gitignore
 
-# Whitelist specific folders
-!tests/
-!src/
-!CODE_VERSION.cfg
-!logger_config.yml
-!entrypoint.sh
-!Makefile
-!MANIFEST.in
-!requirements.txt
-!run.py
-!setup.py
+# Docker specific
+.dockerignore
+Dockerfile
 
-# Blacklist specifics
-*/.git
-*/*.egg-info
-*/dist
-*/build
-*/.*-env
-*/.*-venv
-*/.idea
+# Project management and local dev
+.github/
+.idea/
+.vscode/
+.pre-commit-config.yaml
+*.md
+Makefile
+tests/
+tox.ini
+
+# Caches and virtual environments
+__pycache__/
+*.pyc
+*.pyo
+.ruff_cache/
+.pytest_cache/
+.market-beacon-venv/
+venv/
+env/
+
+# Secrets
+.env
+*.env

@@ -1,83 +1,124 @@
-# Python Microservice Template
+# Market Beacon
 
-## Overview
-This repository serves as a template for creating Python-based microservices. It includes essential configurations and files for code quality, continuous integration, and containerization.
+A Python bot to retrieve and analyze trade data from the Bitget cryptocurrency exchange.
 
 ## Features
-- Pre-commit hooks for code quality checks
-- Continuous Integration (CI) setup with GitHub Actions
-- Flake8 for code linting
-- Dependabot configuration for dependency management
-- Basic Python project structure with a sample module
+
+- **Modern Tooling**: Uses `Ruff` for extremely fast linting, formatting, and import sorting.
+- **Robust Packaging**: Managed with `pyproject.toml` and `setuptools` following PEP 621.
+- **Automated Quality Checks**: Pre-commit hooks for automated code quality enforcement.
+- **Continuous Integration**: GitHub Actions workflow for automated testing and linting on every push.
+- **Containerized**: Multi-stage `Dockerfile` for lean, secure, and reproducible production images.
+- **Developer-Friendly**: `Makefile` for easy access to common commands like installation, testing, and running.
 
 ## Getting Started
 
 ### Prerequisites
-- Python 3.11
+
+- Python 3.12
 - Docker (for containerization)
-- [Additional prerequisites, if applicable]
+- `make` (for using the Makefile commands)
 
 ### Installation
-Clone the repository:
-```bash
-git clone [repository-url]
-cd [repository-name]
-```
-Install dependencies:
+
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/the-user-created/market-beacon.git
+   cd market-beacon
+   ```
+
+2. **Create virtual environment and install dependencies:**
+   This command will create a local virtual environment (`.market-beacon-venv/`) and install all required main and
+   development packages.
+   ```bash
+   make install
+   ```
+
+3. **Activate the virtual environment:**
+   ```bash
+   source .market-beacon-venv/bin/activate
+   ```
+
+### Usage
+
+To run the application locally:
 
 ```bash
-pip install -r requirements.txt
+make run
 ```
-###  Usage
 
-To run the sample Python script:
+You can also pass arguments to the application:
 
 ```bash
-python template.py
+make run args="--symbol BTCUSDT"
 ```
-### Running with Docker
 
-Build the Docker image:
-
-```bash
-docker build -t [image-name] .
-```
-Run the Docker container:
-
-```bash
-docker run -p 8000:8000 [image-name]
-```
 ## Development
+
+This project uses a suite of tools to ensure code quality and consistency.
+
 ### Code Formatting and Linting
 
-Run pre-commit hooks:
+`Ruff` is used for linting and formatting. The `Makefile` provides a simple command to apply formatting and fix lint
+errors automatically.
 
 ```bash
-pre-commit run --all-files
+make lint
 ```
-Run Flake8 linting:
+
+To just check for issues without applying changes (as is done in CI):
 
 ```bash
-flake8 .
+make check
 ```
+
+The pre-commit hooks will run these checks automatically every time you commit.
 
 ### Running Tests
-(Include instructions on how to run tests, if applicable)
 
-## Continuous Integration
-The repository is configured with a CI pipeline using GitHub Actions (`dev_ci.yml`), which automates testing and other checks upon pushing to the repository.
-
-## Versioning
-
-We use `CODE_VERSION.cfg` for semantic versioning. The versioning is handled by using these rules:
-- MAJOR version when you make incompatible API changes,
-- MINOR version when you add functionality in a backwards compatible manner, and
-- PATCH version when you make backwards compatible bug fixes.
-
-To increment the version, run the following commands:
+Tests are managed with `pytest`. To run the full test suite:
 
 ```bash
-- make increment-major-version
-- make increment-minor-version
-- make increment-patch-version
+make test
 ```
+
+This will run all files matching `tests/test_*.py`.
+
+### Versioning
+
+The project version is managed in `CODE_VERSION.cfg` and `pyproject.toml`. Use the `Makefile` to increment the version
+number according to semantic versioning. These commands will create a new git commit and tag.
+
+```bash
+make version-patch  # For bug fixes (0.0.1 -> 0.0.2)
+make version-minor  # For new features (0.1.0 -> 0.2.0)
+make version-major  # For breaking changes (1.0.0 -> 2.0.0)
+```
+
+## Running with Docker
+
+The project includes a multi-stage `Dockerfile` for building optimized production images.
+
+1. **Build the Docker image:**
+   ```bash
+   make docker-build
+   ```
+   *This is equivalent to `docker build -t market-beacon:latest .`*
+
+2. **Run the Docker container:**
+   ```bash
+   make docker-run
+   ```
+   *This is equivalent to `docker run --rm -it market-beacon:latest`*
+
+You can also run tests or other commands inside the container:
+
+```bash
+docker run --rm -it market-beacon:latest test
+docker run --rm -it market-beacon:latest bash
+```
+
+## Continuous Integration
+
+The CI pipeline is defined in `.github/workflows/dev_ci.yml`. It automatically runs `make check` and `make test` on all
+pushes and pull requests to the `main` branch, ensuring that code merged into the main branch meets quality standards.

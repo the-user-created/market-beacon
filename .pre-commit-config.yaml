@@ -1,45 +1,35 @@
+---
 # See https://pre-commit.com for more information
 # See https://pre-commit.com/hooks.html for more hooks
-
-# -   repo: local
-#     hooks:
-#     -   id: test
-#         name: test
-#         entry: make
-#         args: ["test"]
-#         language: system
-#         pass_filenames: false
-
 repos:
--   repo: https://github.com/pre-commit/pre-commit-hooks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
-    -   id: trailing-whitespace
-    -   id: end-of-file-fixer
-    -   id: check-ast
-    -   id: check-json
-    -   id: check-merge-conflict
-    -   id: check-case-conflict
-    -   id: check-docstring-first
-    -   id: check-toml
-    -   id: no-commit-to-branch
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      - id: check-ast
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: debug-statements
+      - id: check-docstring-first
+      - id: check-toml
+      - id: detect-private-key
+      - id: no-commit-to-branch
         args: [--branch, main]
-    -   id: debug-statements
-    -   id: detect-private-key
--   repo: https://github.com/psf/black
-    rev: 25.1.0
+
+  - repo: https://github.com/adrienverge/yamllint
+    rev: v1.37.1
     hooks:
-    -   id: black
-        args: []
-        files: .
--   repo: https://github.com/PyCQA/flake8
-    rev: 7.3.0
+      - id: yamllint
+        args: [--config-file, .yamllint.yml]
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.12.2
     hooks:
-    -   id: flake8
--   repo: https://github.com/PyCQA/isort
-    rev: 6.0.1
-    hooks:
-    -   id: isort
-        args: []
-        files: .
-        exclude: "__init__.py"
+      - id: ruff
+        name: ruff-linter
+        args: ["--fix"]
+      - id: ruff-format
+        name: ruff-formatter

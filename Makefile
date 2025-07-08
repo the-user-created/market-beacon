@@ -1,70 +1,94 @@
-PACKAGE_NAME := market-beacon
-VENV_NAME := ".$(PACKAGE_NAME)-venv"
-VERSION_NUMBER := `cat CODE_VERSION.cfg`
-
 .PHONY: help
-help: ## This help dialog.
-	@fgrep -h "##" $(MAKEFILE_LIST) | fgrep -v fgrep | sed -e 's/\\$$//' | \
-	awk 'BEGIN {FS = "#"} {printf "%-30s %s\n", $$1, $$3}' | sed "s/\$$(PACKAGE_NAME)/$(PACKAGE_NAME)/g"
+.DEFAULT_GOAL := help
 
-venv: ## Creates development environment and updates PIP - does NOT install requirements.
-	python3.12 -m venv ${VENV_NAME} && \
-	. ${VENV_NAME}/bin/activate && \
-	python -m pip install --upgrade pip setuptools wheel build
+# ==============================================================================
+#                              Variables
+# ==============================================================================
+PACKAGE_NAME := market-beacon
+IMAGE_NAME := market-beacon
+VENV_NAME := ".$(PACKAGE_NAME)-venv"
+PYTHON := $(VENV_NAME)/bin/python
+BUMP := $(VENV_NAME)/bin/bump-pydantic
 
-.PHONY: lint
-lint: ## Executes isort, black and flake8 on $(PACKAGE_NAME).
-	. ${VENV_NAME}/bin/activate && \
-	isort . && \
-	black . && \
-	flake8 .
+# ==============================================================================
+#                              Setup & Installation
+# ==============================================================================
+venv: ## Creates development virtual environment.
+	@echo "--> Creating virtual environment..."
+	python3.12 -m venv $(VENV_NAME)
+	@echo "--> Upgrading pip..."
+	@$(PYTHON) -m pip install -U pip setuptools wheel
+	@echo "--> venv created in $(VENV_NAME)"
 
-.PHONY: install-deploy
-install-deploy: ## Installs $(PACKAGE_NAME) without any devtools, for deployment.
-	. ${VENV_NAME}/bin/activate && \
-	python -m pip install .
+install: venv ## Installs project dependencies for development.
+	@echo "--> Installing dependencies from pyproject.toml..."
+	@$(PYTHON) -m pip install -e ".[dev]"
+	@echo "--> Installing pre-commit hooks..."
+	@$(VENV_NAME)/bin/pre-commit install
+	@echo "--> Installation complete."
 
-.PHONY: install-dev
-install-dev: ## Installs with all devtools, for development.
-	. ${VENV_NAME}/bin/activate && \
-	python -m pip install -e .[dev] && \
-	pre-commit install && \
-	pre-commit autoupdate
+# ==============================================================================
+#                              Code Quality & Testing
+# ==============================================================================
+lint: ## Runs the ruff linter and formatter (with auto-fix).
+	@echo "--> Running Ruff Formatter..."
+	@$(PYTHON) -m ruff format .
+	@echo "--> Running Ruff Linter (with auto-fix)..."
+	@$(PYTHON) -m ruff check --fix .
 
-.PHONY: tests
-execute-tests: ## Runs all unit tests.
-	. ${VENV_NAME}/bin/activate && \
-	python -m unittest discover tests/
+check: ## Runs ruff in check-only mode (for CI).
+	@echo "--> Checking formatting with Ruff..."
+	@$(PYTHON) -m ruff format . --check
+	@echo "--> Checking linting with Ruff..."
+	@$(PYTHON) -m ruff check .
 
-.PHONY: increment-major-version
-increment-major-version: ## Increments the major version number of $(PACKAGE_NAME).
-	. ${VENV_NAME}/bin/activate && \
-	bump2version --current-version ${VERSION_NUMBER} major CODE_VERSION.cfg
-	git add .
-	git commit -m "Incremented MAJOR version number."
+test: ## Runs all tests with pytest.
+	@echo "--> Running tests with pytest..."
+	@$(PYTHON) -m pytest tests/
 
-.PHONY: increment-minor-version
-increment-minor-version: ## Increments the minor version number of $(PACKAGE_NAME).
-	. ${VENV_NAME}/bin/activate && \
-	bump2version --current-version ${VERSION_NUMBER} minor CODE_VERSION.cfg
-	git add .
-	git commit -m "Incremented MINOR version number."
+# ==============================================================================
+#                              Versioning
+# ==============================================================================
+version-major: ## Bumps the major version number.
+	@echo "--> Bumping MAJOR version..."
+	@$(BUMP) major
 
-.PHONY: increment-patch-version
-increment-patch-version: ## Increments the patch version number of $(PACKAGE_NAME).
-	. ${VENV_NAME}/bin/activate && \
-	bump2version --current-version ${VERSION_NUMBER} patch CODE_VERSION.cfg
-	git add .
-	git commit -m "Incremented PATCH version number."
+version-minor: ## Bumps the minor version number.
+	@echo "--> Bumping MINOR version..."
+	@$(BUMP) minor
 
-.PHONY: run
-run: ## Runs $(PACKAGE_NAME) with the given arguments.
-	. ${VENV_NAME}/bin/activate && \
-	exec python run.py $(args)
+version-patch: ## Bumps the patch version number.
+	@echo "--> Bumping PATCH version..."
+	@$(BUMP) patch
 
-.PHONY: clean
-clean: ## Removes the virtual environment and any compiled Python files.
-	rm -rf ${VENV_NAME}
-	rm -rf ${PACKAGE_NAME}.egg-info
+# ==============================================================================
+#                       Application & Docker Execution
+# ==============================================================================
+run: ## Runs the application. Pass args with 'make run args="..."'.
+	@echo "--> Running application: $(PACKAGE_NAME)"
+	@$(PYTHON) -m market_beacon.main $(args)
+
+docker-build: ## Builds the Docker image.
+	@echo "--> Building Docker image: $(IMAGE_NAME):latest"
+	@docker build -t $(IMAGE_NAME):latest .
+
+docker-run: ## Runs the application inside a Docker container.
+	@echo "--> Running Docker container: $(IMAGE_NAME)"
+	@docker run --rm -it $(IMAGE_NAME):latest
+
+# ==============================================================================
+#                              Cleanup
+# ==============================================================================
+clean: ## Removes virtual environment and cache files.
+	@echo "--> Cleaning up..."
+	rm -rf $(VENV_NAME)
+	rm -rf .ruff_cache/ .pytest_cache/
+	find . -type d -name "__pycache__" -exec rm -rf {} +
 	find . -type f -name "*.pyc" -delete
-	find . -type d -name "__pycache__" -delete
+	rm -rf src/*.egg-info
+
+help: ## Shows this help message.
+	@echo "Usage: make [target]"
+	@echo ""
+	@echo "Targets:"
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'

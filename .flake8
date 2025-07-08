@@ -1,9 +1,0 @@
-[flake8]
-exclude =
-    .market-beacon-venv,
-    market-beacon.egg-info,
-ignore = E501, W503, E203
-
-; E501: Line too long - ignored because black formatter limits to 100 chars
-; W503: Line break occurred before binary operator - ignored because Black sometimes formats this way
-; E203: Whitespace before ':' - Ignored as Black formats certain things like this.
