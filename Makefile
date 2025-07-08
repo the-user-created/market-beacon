@@ -6,6 +6,7 @@
 # ==============================================================================
 PACKAGE_NAME := market-beacon
 IMAGE_NAME := market-beacon
+PROJECT_VERSION := $(shell awk '/^\[project\]$$/{f=1} f==1&&/^version/{print;exit}' pyproject.toml | cut -d '"' -f 2)
 
 # ==============================================================================
 #                              Setup & Installation
@@ -58,9 +59,13 @@ run: ## Runs the application. Pass args with 'make run args="..."'.
 	@echo "--> Running application: $(PACKAGE_NAME)"
 	@uv run python -m market_beacon $(args)
 
-docker-build: ## Builds the Docker image.
-	@echo "--> Building Docker image: $(IMAGE_NAME):latest"
-	@docker build -t $(IMAGE_NAME):latest .
+docker-build: ## Builds the Docker image with the correct version.
+	@echo "--> Building Docker image: $(IMAGE_NAME):latest and $(IMAGE_NAME):$(PROJECT_VERSION)"
+	@docker build \
+	  --build-arg APP_VERSION=$(PROJECT_VERSION) \
+	  -t $(IMAGE_NAME):latest \
+	  -t $(IMAGE_NAME):$(PROJECT_VERSION) \
+	  .
 
 docker-run: ## Runs the application inside a Docker container.
 	@echo "--> Running Docker container: $(IMAGE_NAME)"
