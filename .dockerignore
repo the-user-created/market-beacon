@@ -1,0 +1,23 @@
+# Ignore everything
+*
+
+# Whitelist specific folders
+!tests/
+!src/
+!CODE_VERSION.cfg
+!logger_config.yml
+!entrypoint.sh
+!Makefile
+!MANIFEST.in
+!requirements.txt
+!run.py
+!setup.py
+
+# Blacklist specifics
+*/.git
+*/*.egg-info
+*/dist
+*/build
+*/.*-env
+*/.*-venv
+*/.idea

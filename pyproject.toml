@@ -1,0 +1,28 @@
+# Black formatting
+[tool.black]
+line-length = 120
+include = '\.pyi?$'
+exclude = '''
+/(
+      \.eggs
+    | \.git
+    | \.hg
+    | \.mypy_cache
+    | \.tox
+    | \.market-beacon-venv
+    | \.venv
+    | _build
+    | buck-out
+    | build
+    | dist
+  )/
+'''
+
+# iSort
+[tool.isort]
+profile = "black"
+line_length = 79
+multi_line_output = 3
+include_trailing_comma = true
+skip_gitignore = true
+virtual_env = ".market-beacon-venv"

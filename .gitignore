@@ -1,0 +1,22 @@
+# Ignore everything
+/*
+
+# Whitelist specific folders
+!/tests/
+!/src/
+!/.github/
+
+# Whitelist specific files
+!/.gitignore
+!/.flake8
+!/.pre-commit-config.yaml
+!/CODE_VERSION.cfg
+!/entrypoint.sh
+!/Makefile
+!/pyproject.toml
+!/README.md
+!/requirements.txt
+!/Dockerfile
+!/.dockerignore
+!/setup.py
+!/run.py
