@@ -14,7 +14,6 @@ repos:
       - id: check-case-conflict
       - id: debug-statements
       - id: check-docstring-first
-      - id: check-toml
       - id: detect-private-key
       - id: no-commit-to-branch
         args: [--branch, main]
@@ -33,3 +32,15 @@ repos:
         args: ["--fix"]
       - id: ruff-format
         name: ruff-formatter
+
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.4.1
+    hooks:
+      - id: codespell
+        additional_dependencies:
+          - tomli; python_version < "3.11"
+
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.24.2
+    hooks:
+      - id: gitleaks

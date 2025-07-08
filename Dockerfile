@@ -11,19 +11,18 @@ WORKDIR /usr/src/app
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-# Install build dependencies (if any, e.g. for C extensions)
-# RUN apt-get update && apt-get install -y --no-install-recommends gcc
-
-# Copy the entire project context (respecting .dockerignore)
-# This includes pyproject.toml, src/, README.md, LICENSE, etc.
-COPY . .
-
 # Create a virtual environment to isolate dependencies
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
+# Upgrade pip
+RUN pip install --no-cache-dir --upgrade pip
+
+# Copy all files required for the build
+COPY pyproject.toml ./
+COPY src/ ./src/
+
 # Install the project and its dependencies into the venv
-# Using --no-cache-dir to keep the layer small
 RUN pip install --no-cache-dir .
 
 # =================
@@ -40,10 +39,8 @@ ENV HOME=/home/app
 # Copy the virtual environment with installed packages from the builder stage
 COPY --from=builder /opt/venv /opt/venv
 
-# Copy the application source code from the builder stage
-# This ensures we only copy what was part of the build
-COPY --from=builder /usr/src/app/src/market_beacon/ ./src/market_beacon/
-COPY --from=builder /usr/src/app/entrypoint.sh ./entrypoint.sh
+# Copy the entrypoint script
+COPY entrypoint.sh ./entrypoint.sh
 RUN chmod +x ./entrypoint.sh
 
 # Activate the virtual environment for subsequent commands
@@ -55,9 +52,9 @@ RUN chown -R app:app .
 # Switch to the non-privileged user
 USER app
 
-# Basic healthcheck to ensure the container is running
+# Healthcheck to ensure the application is importable
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD python -c "import sys; sys.exit(0)"
+  CMD python -c "from market_beacon import __main__"
 
 # Set the entrypoint for the container
 ENTRYPOINT ["./entrypoint.sh"]

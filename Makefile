@@ -8,7 +8,7 @@ PACKAGE_NAME := market-beacon
 IMAGE_NAME := market-beacon
 VENV_NAME := ".$(PACKAGE_NAME)-venv"
 PYTHON := $(VENV_NAME)/bin/python
-BUMP := $(VENV_NAME)/bin/bump-pydantic
+BUMP := $(VENV_NAME)/bin/bump-my-version
 
 # ==============================================================================
 #                              Setup & Installation
@@ -51,22 +51,22 @@ test: ## Runs all tests with pytest.
 # ==============================================================================
 version-major: ## Bumps the major version number.
 	@echo "--> Bumping MAJOR version..."
-	@$(BUMP) major
+	@$(BUMP) bump major
 
 version-minor: ## Bumps the minor version number.
 	@echo "--> Bumping MINOR version..."
-	@$(BUMP) minor
+	@$(BUMP) bump minor
 
 version-patch: ## Bumps the patch version number.
 	@echo "--> Bumping PATCH version..."
-	@$(BUMP) patch
+	@$(BUMP) bump patch
 
 # ==============================================================================
 #                       Application & Docker Execution
 # ==============================================================================
 run: ## Runs the application. Pass args with 'make run args="..."'.
 	@echo "--> Running application: $(PACKAGE_NAME)"
-	@$(PYTHON) -m market_beacon.main $(args)
+	@$(PYTHON) -m market_beacon $(args)
 
 docker-build: ## Builds the Docker image.
 	@echo "--> Building Docker image: $(IMAGE_NAME):latest"
@@ -74,7 +74,7 @@ docker-build: ## Builds the Docker image.
 
 docker-run: ## Runs the application inside a Docker container.
 	@echo "--> Running Docker container: $(IMAGE_NAME)"
-	@docker run --rm -it $(IMAGE_NAME):latest
+	@docker run --rm -it --env-file .env $(IMAGE_NAME):latest
 
 # ==============================================================================
 #                              Cleanup
