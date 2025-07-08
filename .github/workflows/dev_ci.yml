@@ -1,17 +1,17 @@
----
-name: Python CI for market-beacon
+name: Development CI
 
 on:
   push:
-    branches: ["main"]
+    branches:
+      - main
+      - "feature/*"
+      - "fix/*"
   pull_request:
-    branches: ["main"]
-
-permissions:
-  contents: read
+    branches:
+      - main
 
 jobs:
-  build_and_test:
+  lint-and-test:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -20,30 +20,25 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+      - name: Scan for secrets
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v6
         with:
           python-version: ${{ matrix.python-version }}
-
-      - name: Cache pip dependencies
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('pyproject.toml') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
+          enable-cache: true
 
       - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e .[dev]
+        run: uv sync --locked --all-extras --dev
 
-      - name: Lint and Format Check with Ruff
-        run: |
-          ruff check .
-          ruff format . --check
+      - name: Run code quality checks
+        run: uv run ruff check .
 
-      - name: Run tests with Pytest
-        run: |
-          pytest --cov=src --cov-report=xml
+      - name: Run tests
+        run: uv run pytest tests/
