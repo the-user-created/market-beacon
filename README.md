@@ -1,11 +1,34 @@
 # Market Beacon - Bitget Trade Analyzer
 
-[![CI/CD Pipeline](https://img.shields.io/github/actions/workflow/status/the-user-created/market-beacon/dev_ci.yml?branch=main&style=flat-square&logo=githubactions&logoColor=white)](https://github.com/the-user-created/market-beacon/actions/workflows/dev_ci.yml)
-[![Python Version](https://img.shields.io/badge/python-3.12-blue?style=flat-square&logo=python&logoColor=white)](https://www.python.org/downloads/release/python-3120/)
-[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
-[![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white&style=flat-square)](https://github.com/pre-commit/pre-commit)
-[![Gitleaks](https://img.shields.io/badge/protected%20by-gitleaks-blue?style=flat-square)](https://github.com/gitleaks/gitleaks)
-[![License: MIT](https://img.shields.io/github/license/the-user-created/market-beacon?style=flat-square)](https://opensource.org/licenses/MIT)
+<p align="center">
+  <!-- Project & Status -->
+  <a href="https://github.com/the-user-created/market-beacon/releases/latest">
+    <img alt="Latest Release" src="https://img.shields.io/github/v/release/the-user-created/market-beacon?style=flat-square&logo=github&logoColor=white">
+  </a>
+  <a href="https://github.com/the-user-created/market-beacon/blob/main/LICENSE">
+    <img alt="License" src="https://img.shields.io/github/license/the-user-created/market-beacon?style=flat-square">
+  </a>
+  <!-- Build & Quality -->
+  <a href="https://github.com/the-user-created/market-beacon/actions/workflows/ci.yml">
+    <img alt="CI Pipeline" src="https://img.shields.io/github/actions/workflow/status/the-user-created/market-beacon/ci.yml?branch=main&style=flat-square&logo=githubactions&logoColor=white">
+  </a>
+  <a href="https://github.com/the-user-created/market-beacon/pkgs/container/market-beacon">
+    <img alt="Docker Image" src="https://img.shields.io/github/v/release/the-user-created/market-beacon?label=ghcr.io&style=flat-square&logo=docker&logoColor=white">
+  </a>
+  <!-- Code Style & Tooling -->
+  <a href="https://www.python.org/downloads/release/python-3120/">
+    <img alt="Python Version" src="https://img.shields.io/badge/python-3.12-blue?style=flat-square&logo=python&logoColor=white">
+  </a>
+  <a href="https://github.com/astral-sh/ruff">
+    <img alt="Ruff" src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json">
+  </a>
+  <a href="https://github.com/pre-commit/pre-commit">
+    <img alt="pre-commit" src="https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white&style=flat-square">
+  </a>
+  <a href="https://conventionalcommits.org">
+    <img alt="Conventional Commits" src="https://img.shields.io/badge/Conventional%20Commits-1.0.0-yellow.svg?style=flat-square">
+  </a>
+</p>
 
 Market Beacon is a Python-based tool designed to connect to the Bitget
 cryptocurrency exchange via its API. It retrieves real-time and
@@ -23,8 +46,8 @@ trading statistics and metrics, and provides valuable market insights.
 - **Modern Tooling**: Built with a professional-grade stack including
   Docker, `pre-commit` for quality control, and `uv` for
   high-performance dependency management.
-- **CI/CD Ready**: Integrated with GitHub Actions for continuous
-  integration and testing.
+- **Automated CI/CD & Releases**: Fully automated pipeline for testing, quality checks, and versioned releases with
+  auto-generated changelogs.
 
 ## 🚀 Project Status
 
@@ -107,71 +130,84 @@ source .venv/bin/activate
 uv run python -m market_beacon --symbol BTCUSDT
 ```
 
-## 🧰 Development & Tooling
+## 🧰 Development & Automation
+
+This project uses a combination of `make`, `pre-commit`, and GitHub Actions to automate development, testing, and
+release workflows.
 
 ### Makefile Commands
 
-This project includes a `Makefile` to streamline common development tasks.
-Run `make help` to see a full list of commands with their descriptions.
+This project includes a `Makefile` to streamline common development tasks. Run `make help` to see a full list of
+commands with their descriptions.
 
 - `make install`: Sets up the complete development environment using `uv`.
-- `make lint`: Formats code and lints for errors, applying automatic
-  fixes.
-- `make check`: Runs the formatter and linter in check-only mode (ideal
-  for CI).
+- `make lint`: Formats code and lints for errors, applying automatic fixes.
+- `make check`: Runs the formatter and linter in check-only mode (ideal for CI).
 - `make test`: Executes the test suite using `pytest`.
-- `make run`: Runs the main application. Pass arguments like so:
-  `make run args="--symbol ETHUSDT"`.
-- `make version-[major|minor|patch]`: Bumps the project version using
-  `bump-my-version`.
+- `make run`: Runs the main application. Pass arguments like so: `make run args="--symbol ETHUSDT"`.
+- `make version-[major|minor|patch]`: Bumps the project version using `bump-my-version` and creates a Git tag.
 - `make docker-build`: Builds the production Docker image.
 - `make docker-run`: Runs the application inside a Docker container.
 - `make clean`: Removes the virtual environment and all cache files.
 
-### Code Quality Workflow
+### Automation & Release Workflow
 
-We use a suite of tools to maintain high code quality, all of which are
-managed by `pre-commit` and can be run via the `Makefile`.
-
-- **Linting and Formatting with Ruff:** `ruff` is used for both formatting
-  and linting. The `make lint` command will automatically fix most issues.
-- **Spell Checking with Codespell:** `codespell` runs automatically on
-  commit to catch common misspellings in code and documentation.
-- **Secret Scanning with Gitleaks:** The CI pipeline includes a step to
-  run `gitleaks`, which scans for any accidentally committed secrets.
+- **PR Validation**: Every pull request title is automatically checked to ensure it follows
+  the [Conventional Commits](https://www.conventionalcommits.org) specification.
+- **Automated Labeling**: Pull requests are automatically labeled based on their conventional commit type (e.g., `feat`,
+  `fix`, `chore`).
+- **Automated Release Drafting**: When changes are merged to `main`, a draft release is automatically updated with a
+  categorized changelog.
+- **Automated Publishing**: Pushing a new version tag (e.g., `v1.0.0`) triggers a workflow that publishes the final
+  release notes and builds/pushes a versioned Docker image to the GitHub Container Registry.
 
 ## 🛠️ Tooling Stack
 
-This project is built with a focus on modern development practices and
-automation.
+This project is built with a focus on modern development practices and automation.
 
 | Tool                                                                      | Purpose                                                                    |
-|---------------------------------------------------------------------------|----------------------------------------------------------------------------|
+| ------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
 | [**uv**](https://github.com/astral-sh/uv) & `pyproject.toml`              | High-performance dependency and project management.                        |
 | [**Ruff**](https://github.com/astral-sh/ruff)                             | High-performance linting, formatting, and import sorting.                  |
 | [**pytest**](https://docs.pytest.org/)                                    | A powerful framework for writing and running automated tests.              |
-| [**pre-commit**](https://pre-commit.com/)                                 | A framework for managing and maintaining multi-language pre-commit hooks.  |
+| [**pre-commit**](https://pre-commit.com/)                                 | Manages and maintains multi-language pre-commit hooks for quality control. |
 | [**bump-my-version**](https://github.com/callowayproject/bump-my-version) | A tool for version string management and automated bumping.                |
-| [**codespell**](https://github.com/codespell-project/codespell)           | Automated spell checking for source code and documentation.                |
-| [**gitleaks**](https://github.com/gitleaks/gitleaks)                      | Scans git history for secrets and sensitive data.                          |
-| [**GitHub Actions**](https://github.com/features/actions)                 | Continuous Integration (CI) to run tests and quality checks on every push. |
+| [**Release Drafter**](https://github.com/release-drafter/release-drafter) | Automatically generates release notes and changelogs from PRs.             |
+| [**Gitleaks**](https://github.com/gitleaks/gitleaks)                      | Scans git history for secrets and sensitive data.                          |
+| [**GitHub Actions**](https://github.com/features/actions)                 | Continuous Integration (CI) and automated release deployment (CD).         |
 | [**Docker**](https://www.docker.com/)                                     | Containerization for consistent development and deployment environments.   |
 | [**Makefile**](https://www.gnu.org/software/make/manual/make.html)        | A simple command runner for automating common development tasks.           |
 
 ## ❤️ Contributing
 
-Contributions are welcome! If you'd like to contribute, please follow
-these steps:
+Contributions are what make the open-source community such an amazing place to learn, inspire, and create. Any
+contributions you make are **greatly appreciated**.
 
-1. Fork the repository.
-2. Create a new branch (`git checkout -b feature/your-feature-name`).
-3. Make your changes and commit them with a descriptive message.
-4. Push to your branch (`git push origin feature/your-feature-name`).
-5. Create a new Pull Request.
+This project follows the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
-Please also feel free to open an issue for any bugs or feature requests.
+### Reporting Issues
+
+If you encounter a bug or have a feature request, please use the appropriate issue template.
+
+- **[🐛 Bug Report](https://github.com/the-user-created/market-beacon/issues/new?template=bug_report.yml)**: For
+  reporting something that's broken or not working as expected.
+- **[✨ Feature Request](https://github.com/the-user-created/market-beacon/issues/new?template=feature_request.yml)**:
+  For suggesting a new feature or enhancement.
+- For questions, please start a [discussion](https://github.com/the-user-created/market-beacon/discussions).
+
+### Development Workflow
+
+1. **Fork the repository** on GitHub.
+2. **Clone your fork** locally: `git clone https://github.com/YOUR-USERNAME/market-beacon.git`
+3. **Set up the environment**: Run `make install` to install dependencies and pre-commit hooks.
+4. **Create a new branch**: `git checkout -b feat/your-awesome-feature`
+5. **Make your changes**. Remember to add tests for any new functionality.
+6. **Verify your changes**: Run `make check` and `make test` to ensure everything is working correctly.
+7. **Commit your changes**: `git commit -m "feat: Add some amazing feature"`.
+8. **Push to your branch**: `git push origin feat/your-awesome-feature`
+9. **Open a Pull Request**: Go to the original repository and open a pull request. The title of your PR **must** also
+   follow the Conventional Commits specification for the release automation to work correctly.
 
 ## 📄 License
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE)
-file for details.
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.

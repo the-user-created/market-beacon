@@ -1,0 +1,7 @@
+---
+# .github/ISSUE_TEMPLATE/config.yml
+blank_issues_enabled: false
+contact_links:
+  - name: ❓ Ask a Question or Start a Discussion
+    url: https://github.com/the-user-created/market-beacon/discussions/new
+    about: Please use GitHub Discussions for questions and general feedback.
