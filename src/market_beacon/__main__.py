@@ -3,6 +3,7 @@ import sys
 
 from loguru import logger
 
+from market_beacon.analysis import run_analysis
 from market_beacon.api import BitgetAPIError, BitgetClient
 from market_beacon.config import settings
 
@@ -21,11 +22,22 @@ def main(args: list[str] | None = None) -> None:
         default="BTCUSDT",
         help="The trading symbol to analyze (e.g., BTCUSDT).",
     )
+    # Add more arguments for analysis parameters
+    parser.add_argument(
+        "--trade-limit", type=int, default=100, help="Number of recent trades to analyze."
+    )
+    parser.add_argument("--candle-limit", type=int, default=20, help="Number of candles for SMA.")
+    parser.add_argument(
+        "--granularity", type=str, default="1h", help="Candle granularity (e.g., 5m, 1h, 1D)."
+    )
     parsed_args = parser.parse_args(args)
 
     logger.info("Market Beacon bot starting...")
     logger.info(f"API Key loaded (first 5 chars): {settings.bitget_api_key[:5]}...")
-    logger.info(f"Analyzing symbol: {parsed_args.symbol}")
+    logger.info(
+        f"Analyzing symbol: {parsed_args.symbol} "
+        f"({parsed_args.trade_limit} trades, {parsed_args.candle_limit} candles)"
+    )
 
     try:
         with BitgetClient(
@@ -33,26 +45,28 @@ def main(args: list[str] | None = None) -> None:
             secret_key=settings.bitget_api_secret,
             passphrase=settings.bitget_api_passphrase,
         ) as client:
-            # --- Fetch trade data ---
-            trades = client.get_spot_trades(symbol=parsed_args.symbol, limit=5)
-            logger.info(f"Successfully fetched {len(trades)} recent trades.")
-            for trade in trades:
-                logger.info(
-                    f"  - Trade ID: {trade.trade_id}, Side: {trade.side}, "
-                    f"Price: {trade.price}, Size: {trade.size}, Time: {trade.timestamp}"
-                )
+            # --- Fetch Data ---
+            trades = client.get_spot_trades(
+                symbol=parsed_args.symbol, limit=parsed_args.trade_limit
+            )
+            candles = client.get_spot_candles(
+                symbol=parsed_args.symbol,
+                granularity=parsed_args.granularity,
+                limit=parsed_args.candle_limit,
+            )
 
-            # --- Fetch candle data ---
-            candles = client.get_spot_candles(symbol=parsed_args.symbol, granularity="1h", limit=3)
-            logger.info(f"Successfully fetched {len(candles)} recent 1H candles.")
-            for candle in candles:
-                logger.info(
-                    f"  - Time: {candle.timestamp}, Open: {candle.open}, High: {candle.high}, "
-                    f"Low: {candle.low}, Close: {candle.close}, Volume: {candle.volume}"
-                )
+            # --- Run Analysis ---
+            analysis_results = run_analysis(
+                symbol=parsed_args.symbol, trades=trades, candles=candles
+            )
 
-            # TODO: Calculate statistics from the 'trades' and 'candles' lists
-            # TODO: Print or store results
+            # --- Display Results ---
+            logger.info("--- Market Analysis Complete ---")
+            # Use model_dump_json for clean, structured output
+            results_json = analysis_results.model_dump_json(indent=2)
+            # Log the JSON directly. Loguru will handle the formatting.
+            print(results_json)
+            logger.info("--- End of Analysis ---")
 
     except BitgetAPIError as e:
         logger.error(f"An API error occurred: {e}")
