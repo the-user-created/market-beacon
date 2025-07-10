@@ -22,22 +22,20 @@ def main(args: list[str] | None = None) -> None:
         default="BTCUSDT",
         help="The trading symbol to analyze (e.g., BTCUSDT).",
     )
-    # Add more arguments for analysis parameters
     parser.add_argument(
         "--trade-limit", type=int, default=100, help="Number of recent trades to analyze."
     )
     parser.add_argument("--candle-limit", type=int, default=20, help="Number of candles for SMA.")
     parser.add_argument(
-        "--granularity", type=str, default="1h", help="Candle granularity (e.g., 5m, 1h, 1D)."
+        "--granularity",
+        type=str,
+        default="1h",
+        help="Candle granularity (e.g., 5m, 1H, 1D).",
     )
     parsed_args = parser.parse_args(args)
 
     logger.info("Market Beacon bot starting...")
     logger.info(f"API Key loaded (first 5 chars): {settings.bitget_api_key[:5]}...")
-    logger.info(
-        f"Analyzing symbol: {parsed_args.symbol} "
-        f"({parsed_args.trade_limit} trades, {parsed_args.candle_limit} candles)"
-    )
 
     try:
         with BitgetClient(
@@ -45,11 +43,29 @@ def main(args: list[str] | None = None) -> None:
             secret_key=settings.bitget_api_secret,
             passphrase=settings.bitget_api_passphrase,
         ) as client:
-            # --- Fetch Data ---
-            trades = client.get_spot_trades(
+            # --- Validate Symbol and Synchronize Time ---
+            server_time = client.market.get_server_time()
+            logger.info(f"Connected to Bitget. Server time: {server_time.server_time}")
+
+            spot_symbols_list = client.market.get_supported_symbols()
+            valid_symbols = set(spot_symbols_list)
+            if parsed_args.symbol not in valid_symbols:
+                logger.error(
+                    f"Invalid symbol '{parsed_args.symbol}'. Please choose a valid symbol."
+                )
+                sys.exit(1)
+            logger.info(f"Symbol {parsed_args.symbol} validated successfully.")
+
+            # --- Fetch Data using new namespaced client ---
+            logger.info(
+                f"Analyzing symbol: {parsed_args.symbol} "
+                f"({parsed_args.trade_limit} trades, {parsed_args.candle_limit} candles)"
+            )
+
+            trades = client.market.get_trades(
                 symbol=parsed_args.symbol, limit=parsed_args.trade_limit
             )
-            candles = client.get_spot_candles(
+            candles = client.market.get_candles(
                 symbol=parsed_args.symbol,
                 granularity=parsed_args.granularity,
                 limit=parsed_args.candle_limit,
@@ -62,10 +78,8 @@ def main(args: list[str] | None = None) -> None:
 
             # --- Display Results ---
             logger.info("--- Market Analysis Complete ---")
-            # Use model_dump_json for clean, structured output
             results_json = analysis_results.model_dump_json(indent=2)
-            # Log the JSON directly. Loguru will handle the formatting.
-            print(results_json)
+            print(results_json)  # Print JSON to stdout for potential piping
             logger.info("--- End of Analysis ---")
 
     except BitgetAPIError as e:
@@ -73,7 +87,7 @@ def main(args: list[str] | None = None) -> None:
         logger.error(f"Response Body: {e.response_body}")
         sys.exit(1)
     except ValueError as e:
-        logger.error(f"Configuration error: {e}")
+        logger.error(f"Configuration or data validation error: {e}")
         sys.exit(1)
 
     logger.info("Market Beacon bot finished.")
