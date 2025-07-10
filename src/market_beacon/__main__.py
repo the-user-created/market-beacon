@@ -25,7 +25,12 @@ def main(args: list[str] | None = None) -> None:
     parser.add_argument(
         "--trade-limit", type=int, default=100, help="Number of recent trades to analyze."
     )
-    parser.add_argument("--candle-limit", type=int, default=20, help="Number of candles for SMA.")
+    parser.add_argument(
+        "--candle-limit",
+        type=int,
+        default=300,
+        help="Number of candles for technical analysis (e.g., SMA, Ichimoku).",
+    )
     parser.add_argument(
         "--granularity",
         type=str,
