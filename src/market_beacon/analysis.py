@@ -243,7 +243,6 @@ def _safe_get_float(
 
 def calculate_technical_indicators(candles: list[Candle]) -> TechnicalAnalysis:
     """Calculates a comprehensive suite of technical indicators from candlestick data."""
-    # Define periods - aligned with common standards and the reference source.
     ma_short, ma_long = 50, 200
     ema_short, ema_medium = 9, 21
     ema_ribbon_periods = [20, 25, 30, 35, 40, 45, 50, 55]
@@ -251,7 +250,7 @@ def calculate_technical_indicators(candles: list[Candle]) -> TechnicalAnalysis:
     adx_period = 14
     ichimoku_t, ichimoku_k, ichimoku_s = 9, 26, 52
     rsi_period, rsi_ob, rsi_os = 14, 70, 30
-    stoch_fastk_period, stoch_slowk_period, stoch_slowd_period = 9, 6, 3  # Matches STOCH(9,6)
+    stoch_fastk_period, stoch_slowk_period, stoch_slowd_period = 14, 3, 3
     stoch_ob, stoch_os = 80, 20
     williams_period, williams_ob, williams_os = 14, -20, -80
     bb_period, bb_dev = 20, 2
@@ -392,11 +391,11 @@ def calculate_technical_indicators(candles: list[Candle]) -> TechnicalAnalysis:
 
     # The "current" cloud is what's aligned with the current price,
     # which was projected from 26 periods ago.
-    current_senkou_a = _safe_get_float(senkou_span_a_future, index=-1 - ichimoku_k)
-    current_senkou_b = _safe_get_float(senkou_span_b_future, index=-1 - ichimoku_k)
+    current_senkou_a = _safe_get_float(senkou_span_a_future, index=-ichimoku_k)
+    current_senkou_b = _safe_get_float(senkou_span_b_future, index=-ichimoku_k)
 
     # The Chikou Span (Lagging Span) is the close price from 26 periods ago.
-    chikou_span_value = _safe_get_float(close, index=-1 - ichimoku_k)
+    chikou_span_value = _safe_get_float(close, index=-ichimoku_k)
 
     price_pos, cloud_color = None, None
     if current_senkou_a is not None and current_senkou_b is not None:

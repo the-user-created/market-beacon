@@ -84,13 +84,13 @@ def main(args: list[str] | None = None) -> None:
 
             spot_symbols_list = client.market.get_supported_symbols()
             valid_symbols = set(spot_symbols_list)
-            # TODO: Needs to allow brand-new symbols that are not yet in the list
             if parsed_args.symbol not in valid_symbols:
-                logger.error(
-                    f"Invalid symbol '{parsed_args.symbol}'. Please choose a valid symbol."
+                logger.warning(
+                    f"Symbol '{parsed_args.symbol}' not found in the list of supported symbols. "
+                    "Proceeding anyway, but API calls may fail if the symbol is truly invalid."
                 )
-                sys.exit(1)
-            logger.info(f"Symbol {parsed_args.symbol} validated successfully.")
+            else:
+                logger.info(f"Symbol {parsed_args.symbol} validated against supported list.")
 
             # --- Main Logic: Execute one mode or the other ---
             if parsed_args.get_orderbook:

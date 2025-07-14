@@ -151,11 +151,11 @@ class BitgetClient:
         logger.debug("Bitget API client session closed.")
 
     def _create_headers(
-        self, method: str, request_path: str, body: str | bytes, timestamp: str
+        self, method: str, path_to_sign: str, body: str | bytes, timestamp: str
     ) -> dict[str, str]:
         """Creates the necessary headers for an API request."""
         body_str = body.decode() if isinstance(body, bytes) else body
-        signature = generate_signature(timestamp, method, request_path, body_str, self._secret_key)
+        signature = generate_signature(timestamp, method, path_to_sign, body_str, self._secret_key)
         return {
             "ACCESS-KEY": self._api_key,
             "ACCESS-SIGN": signature,
@@ -175,11 +175,18 @@ class BitgetClient:
         query_params = params if not is_post else None
         timestamp = get_timestamp_ms()
 
+        path_to_sign = request_path
+        if query_params:
+            # Create a URL-encoded query string
+            query_string = "&".join([f"{k}={v}" for k, v in query_params.items()])
+            path_to_sign += f"?{query_string}"
+
         # All requests, including public ones, are signed for simplicity and consistency.
         # Bitget's public endpoints ignore auth headers if not needed.
-        headers = self._create_headers(method, request_path, body, timestamp)
+        headers = self._create_headers(method, path_to_sign, body, timestamp)
 
         try:
+            # Note: `requests` will handle URL encoding of query_params correctly
             response = self._session.request(
                 method=method, url=url, params=query_params, data=body, headers=headers, timeout=10
             )
