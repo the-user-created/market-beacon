@@ -1,5 +1,3 @@
-# src/market_beacon/analysis.py
-
 from typing import Literal
 
 import pandas as pd
@@ -7,7 +5,7 @@ import ta
 from loguru import logger
 from pydantic import BaseModel, Field
 
-from .api.models import Candle, Trade
+from .api.models import Candle, OrderBook, Trade
 
 # ==============================================================================
 # 1. Pydantic Models for Analysis Results
@@ -174,6 +172,21 @@ class AnalysisResult(BaseModel):
     symbol: str
     trade_stats: TradeAnalysis
     technical_analysis: TechnicalAnalysis
+
+
+class OrderBookAnalysis(BaseModel):
+    """Pydantic model for holding order book analysis results."""
+
+    best_bid: float = Field(..., description="The highest price a buyer is willing to pay.")
+    best_ask: float = Field(..., description="The lowest price a seller is willing to accept.")
+    mid_price: float = Field(..., description="The average of the best bid and best ask.")
+    spread: float = Field(..., description="The difference between the best ask and best bid.")
+    spread_percent: float = Field(..., description="The spread as a percentage of the mid-price.")
+    total_bid_volume: float = Field(..., description="Total volume of all bids in the book.")
+    total_ask_volume: float = Field(..., description="Total volume of all asks in the book.")
+    market_pressure_ratio: float = Field(
+        ..., description="Ratio of total bid volume to total ask volume. >1 indicates buy pressure."
+    )
 
 
 # ==============================================================================
@@ -453,6 +466,49 @@ def calculate_technical_indicators(candles: list[Candle]) -> TechnicalAnalysis:
         momentum_indicators=momentum_analysis,
         volatility_indicators=volatility_analysis,
         volume_indicators=volume_analysis,
+    )
+
+
+def calculate_order_book_stats(order_book: OrderBook) -> OrderBookAnalysis:
+    """Calculates key metrics from the order book."""
+    if not order_book.bids or not order_book.asks:
+        logger.warning("Order book is missing bids or asks, cannot perform analysis.")
+        # Return a zeroed-out model or raise an error
+        return OrderBookAnalysis(
+            best_bid=0.0,
+            best_ask=0.0,
+            mid_price=0.0,
+            spread=0.0,
+            spread_percent=0.0,
+            total_bid_volume=0.0,
+            total_ask_volume=0.0,
+            market_pressure_ratio=0.0,
+        )
+
+    # Best bid is the highest bid price, best ask is the lowest ask price
+    best_bid = order_book.bids[0].price
+    best_ask = order_book.asks[0].price
+
+    mid_price = (best_ask + best_bid) / 2
+    spread = best_ask - best_bid
+    spread_percent = (spread / mid_price) * 100 if mid_price > 0 else 0.0
+
+    total_bid_volume = sum(level.size for level in order_book.bids)
+    total_ask_volume = sum(level.size for level in order_book.asks)
+
+    market_pressure_ratio = (
+        total_bid_volume / total_ask_volume if total_ask_volume > 0 else float("inf")
+    )
+
+    return OrderBookAnalysis(
+        best_bid=best_bid,
+        best_ask=best_ask,
+        mid_price=mid_price,
+        spread=spread,
+        spread_percent=spread_percent,
+        total_bid_volume=total_bid_volume,
+        total_ask_volume=total_ask_volume,
+        market_pressure_ratio=market_pressure_ratio,
     )
 
 

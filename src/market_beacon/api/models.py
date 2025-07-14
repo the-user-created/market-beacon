@@ -121,3 +121,39 @@ class Candle(BaseModel):
             volume=float(data[5]),
             quote_volume=float(data[6]),
         )
+
+
+class OrderBookLevel(BaseModel):
+    """Represents a single price level in the order book."""
+
+    price: float
+    size: float
+
+    @classmethod
+    def from_list(cls, data: list[str]) -> "OrderBookLevel":
+        """Creates an OrderBookLevel from a [price, size] list of strings."""
+        if len(data) != 2:
+            raise ValueError(f"Order book level data must have 2 elements, but got {len(data)}")
+        return cls(price=float(data[0]), size=float(data[1]))
+
+
+class OrderBook(BaseModel):
+    """Represents the full order book for a symbol."""
+
+    asks: list[OrderBookLevel]
+    bids: list[OrderBookLevel]
+    timestamp: datetime = Field(alias="ts")
+
+    @field_validator("timestamp", mode="before")
+    @classmethod
+    def convert_timestamp_to_datetime(cls, v: Any) -> datetime:
+        if isinstance(v, str) and v.isdigit():
+            return datetime.fromtimestamp(int(v) / 1000.0)
+        return v
+
+    @field_validator("asks", "bids", mode="before")
+    @classmethod
+    def parse_levels(cls, v: Any) -> list[OrderBookLevel]:
+        if not isinstance(v, list):
+            raise TypeError("Asks/Bids data must be a list.")
+        return [OrderBookLevel.from_list(level) for level in v]

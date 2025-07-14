@@ -1,14 +1,14 @@
 import json
 from collections.abc import Callable
 from types import TracebackType
-from typing import Any
+from typing import Any, Literal
 
 import requests
 from loguru import logger
 
 from .auth import generate_signature, get_timestamp_ms
 from .exceptions import BitgetAPIError, BitgetAPIRequestError
-from .models import APIResponse, Candle, ServerTime, SupportedSymbols, Ticker, Trade
+from .models import APIResponse, Candle, OrderBook, ServerTime, SupportedSymbols, Ticker, Trade
 
 
 class MarketDataAPI:
@@ -71,6 +71,26 @@ class MarketDataAPI:
         data = self._request("GET", "/spot/market/candles", params=params)
         # API returns data in reverse chronological order, but analysis expects chronological
         return [Candle.from_list(candle_data) for candle_data in reversed(data)]
+
+    def get_order_book(
+        self,
+        symbol: str,
+        level: Literal["step0", "step1", "step2", "step3", "step4", "step5"] = "step0",
+        limit: int = 50,
+    ) -> OrderBook:
+        """
+        Retrieves the order book for a given spot symbol.
+        Endpoint: GET /spot/market/orderbook
+
+        Args:
+            symbol: The trading pair symbol (e.g., BTCUSDT).
+            level: The price aggregation level. 'step0' is the most granular.
+            limit: The number of price levels to return (max 400 for step0).
+        """
+        logger.info(f"Fetching order book for {symbol} (level: {level}, limit: {limit})...")
+        params = {"symbol": symbol, "type": level, "limit": limit}
+        data = self._request("GET", "/spot/market/orderbook", params=params)
+        return OrderBook.model_validate(data)
 
 
 class BitgetClient:

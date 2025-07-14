@@ -3,7 +3,7 @@ import sys
 
 from loguru import logger
 
-from market_beacon.analysis import run_analysis
+from market_beacon.analysis import calculate_order_book_stats, run_analysis
 from market_beacon.api import BitgetAPIError, BitgetClient
 from market_beacon.config import settings
 
@@ -37,6 +37,25 @@ def main(args: list[str] | None = None) -> None:
         default="1h",
         help="Candle granularity (e.g., 5m, 1H, 1D).",
     )
+
+    # --- Group for Order Book Analysis ---
+    ob_group = parser.add_argument_group("Order Book Options")
+    ob_group.add_argument(
+        "--get-orderbook",
+        action="store_true",
+        help="Fetch and analyze the order book instead of candles/trades.",
+    )
+    ob_group.add_argument(
+        "--orderbook-level",
+        type=str,
+        default="step0",
+        choices=["step0", "step1", "step2", "step3", "step4", "step5"],
+        help="Order book aggregation level.",
+    )
+    ob_group.add_argument(
+        "--orderbook-limit", type=int, default=50, help="Number of order book levels to fetch."
+    )
+
     parsed_args = parser.parse_args(args)
 
     logger.info("Market Beacon bot starting...")
@@ -54,12 +73,26 @@ def main(args: list[str] | None = None) -> None:
 
             spot_symbols_list = client.market.get_supported_symbols()
             valid_symbols = set(spot_symbols_list)
+            # TODO: Needs to allow brand-new symbols that are not yet in the list
             if parsed_args.symbol not in valid_symbols:
                 logger.error(
                     f"Invalid symbol '{parsed_args.symbol}'. Please choose a valid symbol."
                 )
                 sys.exit(1)
             logger.info(f"Symbol {parsed_args.symbol} validated successfully.")
+
+            logger.info(f"Fetching order book for {parsed_args.symbol}...")
+            order_book = client.market.get_order_book(
+                symbol=parsed_args.symbol,
+                level=parsed_args.orderbook_level,
+                limit=parsed_args.orderbook_limit,
+            )
+            order_book_stats = calculate_order_book_stats(order_book)
+
+            logger.info("--- Order Book Analysis Complete ---")
+            results_json = order_book_stats.model_dump_json(indent=2)
+            print(results_json)
+            logger.info("--- End of Analysis ---")
 
             # --- Fetch Data using new namespaced client ---
             logger.info(
