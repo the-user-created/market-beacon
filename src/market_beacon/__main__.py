@@ -1,10 +1,15 @@
 import argparse
 import sys
+from typing import get_args
 
 from loguru import logger
 
-from market_beacon.analysis import calculate_order_book_stats, run_analysis
+from market_beacon.analysis import (
+    calculate_order_book_stats,
+    run_analysis,
+)
 from market_beacon.api import BitgetAPIError, BitgetClient
+from market_beacon.api.client import MarketDataAPI
 from market_beacon.config import settings
 
 
@@ -15,6 +20,9 @@ def main(args: list[str] | None = None) -> None:
     This function parses command-line arguments, initializes the bot,
     and runs the main application logic.
     """
+    # Get valid granularity choices directly from the type hint for robustness
+    valid_granularity = get_args(MarketDataAPI.get_candles.__annotations__["granularity"])
+
     parser = argparse.ArgumentParser(description="Market Beacon Bot")
     parser.add_argument(
         "--symbol",
@@ -22,20 +30,23 @@ def main(args: list[str] | None = None) -> None:
         default="BTCUSDT",
         help="The trading symbol to analyze (e.g., BTCUSDT).",
     )
-    parser.add_argument(
+    # --- Group for Technical Analysis ---
+    ta_group = parser.add_argument_group("Technical Analysis Options")
+    ta_group.add_argument(
         "--trade-limit", type=int, default=100, help="Number of recent trades to analyze."
     )
-    parser.add_argument(
+    ta_group.add_argument(
         "--candle-limit",
         type=int,
         default=300,
         help="Number of candles for technical analysis (e.g., SMA, Ichimoku).",
     )
-    parser.add_argument(
+    ta_group.add_argument(
         "--granularity",
         type=str,
-        default="1h",
-        help="Candle granularity (e.g., 5m, 1H, 1D).",
+        default="1day",  # Corrected default value
+        choices=valid_granularity,
+        help="Candle granularity. From Bitget API.",
     )
 
     # --- Group for Order Book Analysis ---
@@ -81,44 +92,48 @@ def main(args: list[str] | None = None) -> None:
                 sys.exit(1)
             logger.info(f"Symbol {parsed_args.symbol} validated successfully.")
 
+            # --- Main Logic: Execute one mode or the other ---
             if parsed_args.get_orderbook:
-                logger.info(f"Fetching order book for {parsed_args.symbol}...")
+                logger.info(
+                    f"Fetching order book for {parsed_args.symbol} "
+                    f"(level: {parsed_args.orderbook_level}, limit: {parsed_args.orderbook_limit})"
+                )
                 order_book = client.market.get_order_book(
                     symbol=parsed_args.symbol,
                     level=parsed_args.orderbook_level,
                     limit=parsed_args.orderbook_limit,
                 )
                 order_book_stats = calculate_order_book_stats(order_book)
-
                 logger.info("--- Order Book Analysis Complete ---")
-                results_json = order_book_stats.model_dump_json(indent=2)
+                print(order_book_stats.model_dump_json(indent=2))
+
+            else:  # Default to Technical Analysis
+                logger.info(
+                    f"Analyzing symbol: {parsed_args.symbol} "
+                    f"with granularity '{parsed_args.granularity}' "
+                    f"({parsed_args.trade_limit} trades, "
+                    f"{parsed_args.candle_limit} candles)"
+                )
+
+                trades = client.market.get_trades(
+                    symbol=parsed_args.symbol, limit=parsed_args.trade_limit
+                )
+                candles = client.market.get_candles(
+                    symbol=parsed_args.symbol,
+                    granularity=parsed_args.granularity,
+                    limit=parsed_args.candle_limit,
+                )
+
+                # --- Run Analysis ---
+                analysis_results = run_analysis(
+                    symbol=parsed_args.symbol, trades=trades, candles=candles
+                )
+
+                # --- Display Results ---
+                logger.info("--- Market Analysis Complete ---")
+                results_json = analysis_results.model_dump_json(indent=2)
                 print(results_json)
-                logger.info("--- End of Analysis ---")
 
-            # --- Fetch Data using new namespaced client ---
-            logger.info(
-                f"Analyzing symbol: {parsed_args.symbol} "
-                f"({parsed_args.trade_limit} trades, {parsed_args.candle_limit} candles)"
-            )
-
-            trades = client.market.get_trades(
-                symbol=parsed_args.symbol, limit=parsed_args.trade_limit
-            )
-            candles = client.market.get_candles(
-                symbol=parsed_args.symbol,
-                granularity=parsed_args.granularity,
-                limit=parsed_args.candle_limit,
-            )
-
-            # --- Run Analysis ---
-            analysis_results = run_analysis(
-                symbol=parsed_args.symbol, trades=trades, candles=candles
-            )
-
-            # --- Display Results ---
-            logger.info("--- Market Analysis Complete ---")
-            results_json = analysis_results.model_dump_json(indent=2)
-            print(results_json)  # Print JSON to stdout for potential piping
             logger.info("--- End of Analysis ---")
 
     except BitgetAPIError as e:

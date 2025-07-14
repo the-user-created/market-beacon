@@ -1,7 +1,8 @@
 from typing import Literal
 
+import numpy as np
 import pandas as pd
-import ta
+import talib
 from loguru import logger
 from pydantic import BaseModel, Field
 
@@ -225,33 +226,53 @@ def calculate_trade_stats(trades: list[Trade]) -> TradeAnalysis:
     )
 
 
-def _safe_get(series: pd.Series, index: int = -1, default: float | None = None) -> float | None:
-    """Safely gets a value from a pandas Series by index, handling out-of-bounds and NaN."""
+def _safe_get_float(
+    series: np.ndarray, index: int = -1, default: float | None = None
+) -> float | None:
+    """Safely gets a value from a numpy array by index, handling out-of-bounds and NaN."""
     try:
-        # Adjusted to handle both positive and negative indices safely
+        # Check if the index is valid for the array
         if not (-len(series) <= index < len(series)):
             return default
-        val = series.iloc[index]
-        return default if pd.isna(val) else float(val)
+        val = series[index]
+        # np.isnan handles numpy's NaN representation which is float
+        return default if np.isnan(val) else float(val)
     except (IndexError, TypeError):
         return default
 
 
 def calculate_technical_indicators(candles: list[Candle]) -> TechnicalAnalysis:
     """Calculates a comprehensive suite of technical indicators from candlestick data."""
-    # Define periods
+    # Define periods - aligned with common standards and the reference source.
     ma_short, ma_long = 50, 200
     ema_short, ema_medium = 9, 21
-    ema_ribbon_periods = [20, 25, 30, 35, 40, 45, 50]
+    ema_ribbon_periods = [20, 25, 30, 35, 40, 45, 50, 55]
     macd_fast, macd_slow, macd_sign = 12, 26, 9
-    adx_period, ichimoku_t, ichimoku_k, ichimoku_s = 14, 9, 26, 52
+    adx_period = 14
+    ichimoku_t, ichimoku_k, ichimoku_s = 9, 26, 52
     rsi_period, rsi_ob, rsi_os = 14, 70, 30
-    stoch_period, stoch_ob, stoch_os = 14, 80, 20
+    stoch_fastk_period, stoch_slowk_period, stoch_slowd_period = 9, 6, 3  # Matches STOCH(9,6)
+    stoch_ob, stoch_os = 80, 20
     williams_period, williams_ob, williams_os = 14, -20, -80
     bb_period, bb_dev = 20, 2
     atr_period, cmf_period = 14, 20
 
-    min_required_candles = ma_long + ichimoku_s
+    # Dynamically determine minimum required candles based on the longest lookback period
+    lookback_periods = [
+        ma_long,
+        max(ema_ribbon_periods),
+        macd_slow + macd_sign,
+        adx_period,
+        ichimoku_s,
+        rsi_period,
+        stoch_fastk_period + stoch_slowk_period + stoch_slowd_period,
+        williams_period,
+        bb_period,
+        atr_period,
+        cmf_period,
+    ]
+    min_required_candles = max(lookback_periods) + 1  # +1 for prev-value checks
+
     if not candles or len(candles) < min_required_candles:
         logger.warning(
             f"Candle list has insufficient data ({len(candles)} candles, "
@@ -275,7 +296,7 @@ def calculate_technical_indicators(candles: list[Candle]) -> TechnicalAnalysis:
     for col in ["open", "high", "low", "close", "volume"]:
         df[col] = pd.to_numeric(df[col], errors="coerce")
     df.dropna(inplace=True)
-    if df.empty or len(df) < min_required_candles:
+    if len(df) < min_required_candles:
         logger.warning(
             f"DataFrame has insufficient data after cleaning ({len(df)} rows), "
             f"returning empty analysis."
@@ -294,13 +315,22 @@ def calculate_technical_indicators(candles: list[Candle]) -> TechnicalAnalysis:
             volume_indicators=VolumeAnalysis(),
         )
 
-    price_change_percent = ((df["close"].iloc[-1] - df["open"].iloc[0]) / df["open"].iloc[0]) * 100
+    # Convert to numpy arrays for TA-Lib
+    open_ = df["open"].to_numpy(dtype=float)
+    high = df["high"].to_numpy(dtype=float)
+    low = df["low"].to_numpy(dtype=float)
+    close = df["close"].to_numpy(dtype=float)
+    volume = df["volume"].to_numpy(dtype=float)
+
+    price_change_percent = ((close[-1] - open_[0]) / open_[0]) * 100
 
     # --- Trend Indicators ---
-    sma_short_series = ta.trend.sma_indicator(df["close"], window=ma_short)
-    sma_long_series = ta.trend.sma_indicator(df["close"], window=ma_long)
-    sma_short_val, sma_short_prev = _safe_get(sma_short_series, -1), _safe_get(sma_short_series, -2)
-    sma_long_val, sma_long_prev = _safe_get(sma_long_series, -1), _safe_get(sma_long_series, -2)
+    sma_short_series = talib.SMA(close, timeperiod=ma_short)
+    sma_long_series = talib.SMA(close, timeperiod=ma_long)
+    sma_short_val = _safe_get_float(sma_short_series, -1)
+    sma_short_prev = _safe_get_float(sma_short_series, -2)
+    sma_long_val = _safe_get_float(sma_long_series, -1)
+    sma_long_prev = _safe_get_float(sma_long_series, -2)
     crossover = None
     if all(v is not None for v in [sma_short_val, sma_short_prev, sma_long_val, sma_long_prev]):
         if sma_short_val > sma_long_val and sma_short_prev <= sma_long_prev:
@@ -310,52 +340,71 @@ def calculate_technical_indicators(candles: list[Candle]) -> TechnicalAnalysis:
     ma_analysis = MovingAverageAnalysis(
         sma_short=sma_short_val,
         sma_long=sma_long_val,
-        ema_short=_safe_get(ta.trend.ema_indicator(df["close"], ema_short)),
-        ema_medium=_safe_get(ta.trend.ema_indicator(df["close"], ema_medium)),
+        ema_short=_safe_get_float(talib.EMA(close, timeperiod=ema_short)),
+        ema_medium=_safe_get_float(talib.EMA(close, timeperiod=ema_medium)),
         crossover_signal=crossover,
         ema_ribbon={
-            f"ema_{p}": _safe_get(ta.trend.ema_indicator(df["close"], p))
-            for p in ema_ribbon_periods
+            f"ema_{p}": _safe_get_float(talib.EMA(close, timeperiod=p)) for p in ema_ribbon_periods
         },
     )
 
-    macd_ind = ta.trend.MACD(df["close"], macd_slow, macd_fast, macd_sign)
-    hist, hist_prev = _safe_get(macd_ind.macd_diff(), -1), _safe_get(macd_ind.macd_diff(), -2)
+    macd_line_s, signal_line_s, hist_s = talib.MACD(
+        close, fastperiod=macd_fast, slowperiod=macd_slow, signalperiod=macd_sign
+    )
+    hist, hist_prev = _safe_get_float(hist_s, -1), _safe_get_float(hist_s, -2)
     macd_analysis = MACDAnalysis(
-        macd_line=_safe_get(macd_ind.macd()),
-        signal_line=_safe_get(macd_ind.macd_signal()),
+        macd_line=_safe_get_float(macd_line_s),
+        signal_line=_safe_get_float(signal_line_s),
         histogram=hist,
-        momentum="Strengthening"
-        if hist and hist_prev and abs(hist) > abs(hist_prev)
-        else "Weakening",
+        momentum=(
+            "Strengthening"
+            if hist is not None and hist_prev is not None and abs(hist) > abs(hist_prev)
+            else "Weakening"
+        ),
     )
 
-    adx_val = _safe_get(ta.trend.adx(df["high"], df["low"], df["close"], adx_period))
+    adx_val = _safe_get_float(talib.ADX(high, low, close, timeperiod=adx_period))
     adx_analysis = ADXAnalysis(
         adx=adx_val,
         trend_strength="Strong Trend"
-        if adx_val and adx_val > 25
+        if adx_val is not None and adx_val > 25
         else "Weak or Ranging"
-        if adx_val and adx_val < 20
+        if adx_val is not None and adx_val < 20
         else "Developing Trend",
     )
 
     # --- ICHIMOKU CLOUD ---
-    ichi_ind = ta.trend.IchimokuIndicator(
-        df["high"], df["low"], window1=ichimoku_t, window2=ichimoku_k, window3=ichimoku_s
-    )
-    span_a_series = ichi_ind.ichimoku_a()
-    span_b_series = ichi_ind.ichimoku_b()
-    current_senkou_a = _safe_get(span_a_series, index=-1 - ichimoku_k)
-    current_senkou_b = _safe_get(span_b_series, index=-1 - ichimoku_k)
-    chikou_span_value = _safe_get(df["close"], index=-1 - ichimoku_k)
+    tenkan_sen_s = (
+        df["high"].rolling(window=ichimoku_t).max() + df["low"].rolling(window=ichimoku_t).min()
+    ) / 2
+    kijun_sen_s = (
+        df["high"].rolling(window=ichimoku_k).max() + df["low"].rolling(window=ichimoku_k).min()
+    ) / 2
+
+    # Senkou Span A is (Tenkan + Kijun) / 2, plotted 26 periods ahead.
+    senkou_span_a_future = ((tenkan_sen_s + kijun_sen_s) / 2).to_numpy()
+
+    # Senkou Span B is the 52-period high/low midpoint, plotted 26 periods ahead.
+    senkou_span_b_future = (
+        (df["high"].rolling(window=ichimoku_s).max() + df["low"].rolling(window=ichimoku_s).min())
+        / 2
+    ).to_numpy()
+
+    # The "current" cloud is what's aligned with the current price,
+    # which was projected from 26 periods ago.
+    current_senkou_a = _safe_get_float(senkou_span_a_future, index=-1 - ichimoku_k)
+    current_senkou_b = _safe_get_float(senkou_span_b_future, index=-1 - ichimoku_k)
+
+    # The Chikou Span (Lagging Span) is the close price from 26 periods ago.
+    chikou_span_value = _safe_get_float(close, index=-1 - ichimoku_k)
+
     price_pos, cloud_color = None, None
     if current_senkou_a is not None and current_senkou_b is not None:
         cloud_top, cloud_bottom = (
             max(current_senkou_a, current_senkou_b),
             min(current_senkou_a, current_senkou_b),
         )
-        price = df["close"].iloc[-1]
+        price = close[-1]
         price_pos = (
             "Above Cloud"
             if price > cloud_top
@@ -364,15 +413,17 @@ def calculate_technical_indicators(candles: list[Candle]) -> TechnicalAnalysis:
             else "In Cloud"
         )
         cloud_color = "Green" if current_senkou_a > current_senkou_b else "Red"
-    future_a = _safe_get(span_a_series, index=-1)
-    future_b = _safe_get(span_b_series, index=-1)
+
+    # The "future" cloud is what is being projected from the most recent data.
+    future_a = _safe_get_float(senkou_span_a_future)
+    future_b = _safe_get_float(senkou_span_b_future)
     future_color = (
         "Green" if future_a is not None and future_b is not None and future_a > future_b else "Red"
     )
 
     ichimoku_analysis = IchimokuCloudAnalysis(
-        tenkan_sen=_safe_get(ichi_ind.ichimoku_conversion_line()),
-        kijun_sen=_safe_get(ichi_ind.ichimoku_base_line()),
+        tenkan_sen=_safe_get_float(tenkan_sen_s.to_numpy()),
+        kijun_sen=_safe_get_float(kijun_sen_s.to_numpy()),
         senkou_span_a=current_senkou_a,
         senkou_span_b=current_senkou_b,
         chikou_span=chikou_span_value,
@@ -381,14 +432,16 @@ def calculate_technical_indicators(candles: list[Candle]) -> TechnicalAnalysis:
         future_cloud_color=future_color,
     )
 
-    psar_series = ta.trend.PSARIndicator(df["high"], df["low"], df["close"]).psar()
-    psar_val, psar_prev = _safe_get(psar_series, -1), _safe_get(psar_series, -2)
-    is_up_now = psar_val is not None and psar_val < df["low"].iloc[-1]
-    was_up_before = psar_prev is not None and psar_prev < df["low"].iloc[-2]
+    psar_series = talib.SAR(high, low)
+    psar_val, psar_prev = _safe_get_float(psar_series, -1), _safe_get_float(psar_series, -2)
+    is_up_now = psar_val is not None and psar_val < low[-1]
+    was_up_before = psar_prev is not None and psar_prev < low[-2]
     psar_analysis = ParabolicSARAnalysis(
         psar=psar_val,
         trend_direction="Uptrend" if is_up_now else "Downtrend",
-        is_reversal=is_up_now != was_up_before if psar_val and psar_prev else False,
+        is_reversal=is_up_now != was_up_before
+        if psar_val is not None and psar_prev is not None
+        else False,
     )
 
     trend_analysis = TrendAnalysis(
@@ -399,8 +452,8 @@ def calculate_technical_indicators(candles: list[Candle]) -> TechnicalAnalysis:
         parabolic_sar=psar_analysis,
     )
 
-    # --- Momentum, Volatility, and Volume Indicators ---
-    rsi_val = _safe_get(ta.momentum.rsi(df["close"], rsi_period))
+    # --- Momentum Indicators ---
+    rsi_val = _safe_get_float(talib.RSI(close, timeperiod=rsi_period))
     rsi_level = (
         "Overbought"
         if rsi_val and rsi_val > rsi_ob
@@ -408,17 +461,24 @@ def calculate_technical_indicators(candles: list[Candle]) -> TechnicalAnalysis:
         if rsi_val and rsi_val < rsi_os
         else "Neutral"
     )
-    stoch_k = _safe_get(ta.momentum.stoch(df["high"], df["low"], df["close"], stoch_period))
+
+    stoch_k_s, stoch_d_s = talib.STOCH(
+        high,
+        low,
+        close,
+        fastk_period=stoch_fastk_period,
+        slowk_period=stoch_slowk_period,
+        slowd_period=stoch_slowd_period,
+    )
+    stoch_k_val = _safe_get_float(stoch_k_s)
     stoch_level = (
         "Overbought"
-        if stoch_k and stoch_k > stoch_ob
+        if stoch_k_val and stoch_k_val > stoch_ob
         else "Oversold"
-        if stoch_k and stoch_k < stoch_os
+        if stoch_k_val and stoch_k_val < stoch_os
         else "Neutral"
     )
-    williams_r_val = _safe_get(
-        ta.momentum.williams_r(df["high"], df["low"], df["close"], williams_period)
-    )
+    williams_r_val = _safe_get_float(talib.WILLR(high, low, close, timeperiod=williams_period))
     williams_r_level = (
         "Overbought"
         if williams_r_val and williams_r_val > williams_ob
@@ -430,34 +490,45 @@ def calculate_technical_indicators(candles: list[Candle]) -> TechnicalAnalysis:
     momentum_analysis = MomentumAnalysis(
         rsi=rsi_val,
         rsi_level=rsi_level,
-        stochastic_k=stoch_k,
-        stochastic_d=_safe_get(
-            ta.momentum.stoch_signal(df["high"], df["low"], df["close"], stoch_period)
-        ),
+        stochastic_k=stoch_k_val,
+        stochastic_d=_safe_get_float(stoch_d_s),
         stochastic_level=stoch_level,
         williams_r=williams_r_val,
         williams_r_level=williams_r_level,
     )
 
-    bb_ind = ta.volatility.BollingerBands(df["close"], bb_period, bb_dev)
+    # --- Volatility Indicators ---
+    bb_upper, bb_middle, bb_lower = talib.BBANDS(
+        close, timeperiod=bb_period, nbdevup=bb_dev, nbdevdn=bb_dev
+    )
+    bb_upper_val = _safe_get_float(bb_upper)
+    bb_middle_val = _safe_get_float(bb_middle)
+    bb_lower_val = _safe_get_float(bb_lower)
+    bb_bw, bb_p = None, None
+    if all(v is not None for v in [bb_upper_val, bb_middle_val, bb_lower_val]):
+        if bb_middle_val > 0:
+            bb_bw = (bb_upper_val - bb_lower_val) / bb_middle_val
+        band_range = bb_upper_val - bb_lower_val
+        if band_range > 0:
+            bb_p = (close[-1] - bb_lower_val) / band_range
+
     volatility_analysis = VolatilityAnalysis(
-        atr=_safe_get(
-            ta.volatility.average_true_range(df["high"], df["low"], df["close"], atr_period)
-        ),
-        bollinger_hband=_safe_get(bb_ind.bollinger_hband()),
-        bollinger_lband=_safe_get(bb_ind.bollinger_lband()),
-        bollinger_mavg=_safe_get(bb_ind.bollinger_mavg()),
-        bollinger_bandwidth=_safe_get(bb_ind.bollinger_wband()),
-        bollinger_percent_b=_safe_get(bb_ind.bollinger_pband()),
+        atr=_safe_get_float(talib.ATR(high, low, close, timeperiod=atr_period)),
+        bollinger_hband=bb_upper_val,
+        bollinger_lband=bb_lower_val,
+        bollinger_mavg=bb_middle_val,
+        bollinger_bandwidth=bb_bw,
+        bollinger_percent_b=bb_p,
     )
 
+    # --- Volume Indicators ---
+    mfm = np.where((high - low) > 0, ((close - low) - (high - close)) / (high - low), 0)
+    mfv = mfm * volume
+    cmf_s = talib.SUM(mfv, cmf_period) / talib.SUM(volume, cmf_period)
+
     volume_analysis = VolumeAnalysis(
-        on_balance_volume=_safe_get(ta.volume.on_balance_volume(df["close"], df["volume"])),
-        chaikin_money_flow=_safe_get(
-            ta.volume.chaikin_money_flow(
-                df["high"], df["low"], df["close"], df["volume"], cmf_period
-            )
-        ),
+        on_balance_volume=_safe_get_float(talib.OBV(close, volume)),
+        chaikin_money_flow=_safe_get_float(cmf_s),
     )
 
     return TechnicalAnalysis(
@@ -473,7 +544,6 @@ def calculate_order_book_stats(order_book: OrderBook) -> OrderBookAnalysis:
     """Calculates key metrics from the order book."""
     if not order_book.bids or not order_book.asks:
         logger.warning("Order book is missing bids or asks, cannot perform analysis.")
-        # Return a zeroed-out model or raise an error
         return OrderBookAnalysis(
             best_bid=0.0,
             best_ask=0.0,
@@ -485,7 +555,6 @@ def calculate_order_book_stats(order_book: OrderBook) -> OrderBookAnalysis:
             market_pressure_ratio=0.0,
         )
 
-    # Best bid is the highest bid price, best ask is the lowest ask price
     best_bid = order_book.bids[0].price
     best_ask = order_book.asks[0].price
 

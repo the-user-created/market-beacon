@@ -59,18 +59,40 @@ class MarketDataAPI:
         data = self._request("GET", "/spot/market/fills", params=params)
         return [Trade.model_validate(trade) for trade in data]
 
-    def get_candles(self, symbol: str, granularity: str, limit: int = 100) -> list[Candle]:
+    def get_candles(
+        self,
+        symbol: str,
+        granularity: Literal[
+            "1min",
+            "3min",
+            "5min",
+            "15min",
+            "30min",
+            "1h",
+            "4h",
+            "6h",
+            "12h",
+            "1day",
+            "1week",
+            "1M",
+            "6Hutc",
+            "12Hutc",
+            "1Dutc",
+            "3Dutc",
+            "1Wutc",
+            "1Mutc",
+        ],
+        limit: int = 100,
+    ) -> list[Candle]:
         """
         Retrieves historical candlestick data for a given spot symbol.
         Endpoint: GET /spot/market/candles
-        Args:
-            granularity: Bar size. Valid values: [1m, 5m, 15m, 30m, 1h, 4h, 12h, 1D, 1W]
         """
         logger.info(f"Fetching last {limit} candles ({granularity}) for {symbol}...")
         params = {"symbol": symbol, "granularity": granularity, "limit": limit}
         data = self._request("GET", "/spot/market/candles", params=params)
-        # API returns data in reverse chronological order, but analysis expects chronological
-        return [Candle.from_list(candle_data) for candle_data in reversed(data)]
+        # Data is already in chronological order (oldest to newest)
+        return [Candle.from_list(candle_data) for candle_data in data]
 
     def get_order_book(
         self,
