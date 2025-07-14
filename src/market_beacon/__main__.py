@@ -81,18 +81,19 @@ def main(args: list[str] | None = None) -> None:
                 sys.exit(1)
             logger.info(f"Symbol {parsed_args.symbol} validated successfully.")
 
-            logger.info(f"Fetching order book for {parsed_args.symbol}...")
-            order_book = client.market.get_order_book(
-                symbol=parsed_args.symbol,
-                level=parsed_args.orderbook_level,
-                limit=parsed_args.orderbook_limit,
-            )
-            order_book_stats = calculate_order_book_stats(order_book)
+            if parsed_args.get_orderbook:
+                logger.info(f"Fetching order book for {parsed_args.symbol}...")
+                order_book = client.market.get_order_book(
+                    symbol=parsed_args.symbol,
+                    level=parsed_args.orderbook_level,
+                    limit=parsed_args.orderbook_limit,
+                )
+                order_book_stats = calculate_order_book_stats(order_book)
 
-            logger.info("--- Order Book Analysis Complete ---")
-            results_json = order_book_stats.model_dump_json(indent=2)
-            print(results_json)
-            logger.info("--- End of Analysis ---")
+                logger.info("--- Order Book Analysis Complete ---")
+                results_json = order_book_stats.model_dump_json(indent=2)
+                print(results_json)
+                logger.info("--- End of Analysis ---")
 
             # --- Fetch Data using new namespaced client ---
             logger.info(
