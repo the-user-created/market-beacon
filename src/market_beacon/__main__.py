@@ -33,9 +33,6 @@ def main(args: list[str] | None = None) -> None:
     # --- Group for Technical Analysis ---
     ta_group = parser.add_argument_group("Technical Analysis Options")
     ta_group.add_argument(
-        "--trade-limit", type=int, default=100, help="Number of recent trades to analyze."
-    )
-    ta_group.add_argument(
         "--candle-limit",
         type=int,
         default=300,
@@ -44,9 +41,19 @@ def main(args: list[str] | None = None) -> None:
     ta_group.add_argument(
         "--granularity",
         type=str,
-        default="1day",  # Corrected default value
+        default="1min",
         choices=valid_granularity,
         help="Candle granularity. From Bitget API.",
+    )
+    ta_group.add_argument(
+        "--analysis-mode",
+        type=str,
+        default="fast",
+        choices=["fast", "full"],
+        help=(
+            "'fast': (Default) Use candle data for efficient, approximated trade stats. "
+            "'full': Fetch all individual trades for precise, but slower, stats."
+        ),
     )
 
     # --- Group for Order Book Analysis ---
@@ -110,29 +117,48 @@ def main(args: list[str] | None = None) -> None:
             else:  # Default to Technical Analysis
                 logger.info(
                     f"Analyzing symbol: {parsed_args.symbol} "
+                    f"in '{parsed_args.analysis_mode}' mode "
                     f"with granularity '{parsed_args.granularity}' "
-                    f"({parsed_args.trade_limit} trades, "
-                    f"{parsed_args.candle_limit} candles)"
+                    f"({parsed_args.candle_limit} candles)"
                 )
 
-                trades = client.market.get_trades(
-                    symbol=parsed_args.symbol, limit=parsed_args.trade_limit
-                )
+                # Always fetch candles as they are the basis for technical indicators
                 candles = client.market.get_candles(
                     symbol=parsed_args.symbol,
                     granularity=parsed_args.granularity,
                     limit=parsed_args.candle_limit,
                 )
 
+                trades = []
+                if candles:
+                    # In 'full' mode, fetch all trades within the candle time range
+                    if parsed_args.analysis_mode == "full":
+                        start_time = candles[0].timestamp
+                        end_time = candles[-1].timestamp
+                        trades = client.market.get_trades(
+                            symbol=parsed_args.symbol,
+                            start_time=start_time,
+                            end_time=end_time,
+                        )
+                else:
+                    logger.warning("No candle data returned, skipping analysis.")
+
                 # --- Run Analysis ---
                 analysis_results = run_analysis(
-                    symbol=parsed_args.symbol, trades=trades, candles=candles
+                    symbol=parsed_args.symbol,
+                    trades=trades,
+                    candles=candles,
+                    mode=parsed_args.analysis_mode,
                 )
 
                 # --- Display Results ---
                 logger.info("--- Market Analysis Complete ---")
-                results_json = analysis_results.model_dump_json(indent=2)
+                results_json = analysis_results.model_dump_json(indent=2, exclude_none=True)
                 print(results_json)
+
+                # Save results to file
+                with open("analysis_results.json", "w") as f:
+                    f.write(results_json)
 
             logger.info("--- End of Analysis ---")
 

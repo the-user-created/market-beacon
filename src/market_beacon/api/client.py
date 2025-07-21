@@ -1,5 +1,6 @@
 import json
 from collections.abc import Callable
+from datetime import datetime
 from types import TracebackType
 from typing import Any, Literal
 
@@ -49,15 +50,81 @@ class MarketDataAPI:
             raise BitgetAPIError(f"No ticker data returned for symbol {symbol}")
         return Ticker.model_validate(data[0])
 
-    def get_trades(self, symbol: str, limit: int = 100) -> list[Trade]:
+    def get_trades(
+        self,
+        symbol: str,
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
+        limit: int = 100,
+    ) -> list[Trade]:
         """
-        Retrieves the most recent public trades for a given spot symbol.
+        Retrieves public trades for a given spot symbol, with support for time-based
+        pagination to fetch all trades within a range.
+
+        If a time range is provided, it fetches all trades within that range by making
+        multiple paginated requests if necessary. If no time range is given, it fetches
+        the most recent trades up to the specified limit.
+
         Endpoint: GET /spot/market/fills
         """
-        logger.info(f"Fetching last {limit} trades for {symbol}...")
-        params = {"symbol": symbol, "limit": limit}
-        data = self._request("GET", "/spot/market/fills", params=params)
-        return [Trade.model_validate(trade) for trade in data]
+        # The API's per-page limit is 100.
+        page_limit = max(1, min(100, limit))
+
+        # --- Legacy behavior: Fetch most recent trades if no time range is given ---
+        if not start_time and not end_time:
+            logger.info(f"Fetching last {page_limit} trades for {symbol}...")
+            params = {"symbol": symbol, "limit": page_limit}
+            data = self._request("GET", "/spot/market/fills", params=params)
+            return [Trade.model_validate(trade) for trade in data]
+
+        # --- New behavior: Fetch all trades within the specified time range ---
+        logger.info(f"Fetching all trades for {symbol} from {start_time} to {end_time}...")
+
+        all_trades: list[Trade] = []
+        last_trade_id: str | None = None
+        page_num = 1
+
+        # Prepare base parameters for the requests
+        base_params: dict[str, Any] = {"symbol": symbol, "limit": page_limit}
+        if start_time:
+            base_params["startTime"] = int(start_time.timestamp() * 1000)
+        if end_time:
+            base_params["endTime"] = int(end_time.timestamp() * 1000)
+
+        while True:
+            params = base_params.copy()
+            if last_trade_id:
+                params["afterTradeId"] = last_trade_id
+
+            logger.debug(f"Fetching page {page_num} of trades with params: {params}")
+
+            try:
+                data = self._request("GET", "/spot/market/fills", params=params)
+                if not data:
+                    break  # No more data in the given range
+
+                current_page_trades = [Trade.model_validate(trade) for trade in data]
+                all_trades.extend(current_page_trades)
+
+                # Update the cursor for the next page
+                last_trade_id = current_page_trades[-1].trade_id
+                page_num += 1
+
+                # Stop if the last page had fewer items than the limit
+                if len(current_page_trades) < page_limit:
+                    break
+
+            except BitgetAPIRequestError as e:
+                logger.error(f"Error fetching trades on page {page_num}: {e}")
+                break
+
+        logger.info(f"Fetched a total of {len(all_trades)} trades in {page_num - 1} page(s).")
+
+        # Sort the final list by timestamp to ensure perfect chronological order
+        if all_trades:
+            all_trades.sort(key=lambda t: t.timestamp)
+
+        return all_trades
 
     def get_candles(
         self,

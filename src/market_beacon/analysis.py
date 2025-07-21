@@ -14,15 +14,22 @@ from .api.models import Candle, OrderBook, Trade
 
 
 class TradeAnalysis(BaseModel):
-    """Pydantic model for holding trade analysis results."""
+    """
+    Pydantic model for holding trade analysis results.
+    Some fields are only available in 'full' analysis mode.
+    """
 
-    total_trades: int
-    buy_trades: int
-    sell_trades: int
-    total_volume: float = Field(..., description="Total volume of all trades")
-    buy_volume: float = Field(..., description="Volume of buy-side trades")
-    sell_volume: float = Field(..., description="Volume of sell-side trades")
-    vwap: float = Field(..., description="Volume-Weighted Average Price")
+    total_trades: int | None = Field(None, description="Total number of trades (full mode only)")
+    buy_trades: int | None = Field(None, description="Number of buy-side trades (full mode only)")
+    sell_trades: int | None = Field(None, description="Number of sell-side trades (full mode only)")
+    total_volume: float = Field(..., description="Total volume of all trades in the period")
+    buy_volume: float | None = Field(None, description="Volume of buy-side trades (full mode only)")
+    sell_volume: float | None = Field(
+        None, description="Volume of sell-side trades (full mode only)"
+    )
+    vwap: float = Field(
+        ..., description="Volume-Weighted Average Price (approximated in fast mode)"
+    )
 
 
 class MovingAverageAnalysis(BaseModel):
@@ -195,26 +202,24 @@ class OrderBookAnalysis(BaseModel):
 # ==============================================================================
 
 
-def calculate_trade_stats(trades: list[Trade]) -> TradeAnalysis:
-    """Calculates statistics from a list of recent trades."""
+def calculate_trade_stats_from_trades(trades: list[Trade]) -> TradeAnalysis:
+    """
+    Calculates precise statistics from a list of individual trades. ('full' mode)
+    """
     if not trades:
         logger.warning("Trade list is empty, returning zeroed-out stats.")
-        return TradeAnalysis(
-            total_trades=0,
-            buy_trades=0,
-            sell_trades=0,
-            total_volume=0.0,
-            buy_volume=0.0,
-            sell_volume=0.0,
-            vwap=0.0,
-        )
+        return TradeAnalysis(total_volume=0.0, vwap=0.0)
+
     buy_trades = [t for t in trades if t.side == "buy"]
     sell_trades = [t for t in trades if t.side == "sell"]
+
     total_volume = sum(t.size for t in trades)
     buy_volume = sum(t.size for t in buy_trades)
     sell_volume = sum(t.size for t in sell_trades)
+
     weighted_price_sum = sum(t.price * t.size for t in trades)
     vwap = weighted_price_sum / total_volume if total_volume > 0 else 0.0
+
     return TradeAnalysis(
         total_trades=len(trades),
         buy_trades=len(buy_trades),
@@ -223,6 +228,29 @@ def calculate_trade_stats(trades: list[Trade]) -> TradeAnalysis:
         buy_volume=buy_volume,
         sell_volume=sell_volume,
         vwap=vwap,
+    )
+
+
+def calculate_trade_stats_from_candles(candles: list[Candle]) -> TradeAnalysis:
+    """
+    Calculates aggregated statistics from candlestick data. ('fast' mode)
+    This provides an efficient approximation for VWAP and total volume.
+    """
+    if not candles:
+        logger.warning("Candle list is empty, returning zeroed-out stats.")
+        return TradeAnalysis(total_volume=0.0, vwap=0.0)
+
+    total_volume = sum(c.volume for c in candles)
+
+    # Approximate VWAP using (High + Low + Close) / 3 as the typical price for the period
+    weighted_price_sum = sum(((c.high + c.low + c.close) / 3) * c.volume for c in candles)
+    vwap = weighted_price_sum / total_volume if total_volume > 0 else 0.0
+
+    logger.info("Calculated trade stats from candles (fast mode).")
+    return TradeAnalysis(
+        total_volume=total_volume,
+        vwap=vwap,
+        # Other fields are None as they can't be derived from candles
     )
 
 
@@ -585,10 +613,20 @@ def calculate_order_book_stats(order_book: OrderBook) -> OrderBookAnalysis:
 # ==============================================================================
 
 
-def run_analysis(symbol: str, trades: list[Trade], candles: list[Candle]) -> AnalysisResult:
+def run_analysis(
+    symbol: str,
+    trades: list[Trade],
+    candles: list[Candle],
+    mode: Literal["fast", "full"] = "fast",
+) -> AnalysisResult:
     """Runs all analysis functions and returns a composite result."""
-    logger.info(f"Running analysis for {symbol}...")
-    trade_stats = calculate_trade_stats(trades)
+    logger.info(f"Running analysis for {symbol} in '{mode}' mode...")
+
+    if mode == "full":
+        trade_stats = calculate_trade_stats_from_trades(trades)
+    else:  # 'fast' mode
+        trade_stats = calculate_trade_stats_from_candles(candles)
+
     technical_analysis = calculate_technical_indicators(candles)
     return AnalysisResult(
         symbol=symbol,
