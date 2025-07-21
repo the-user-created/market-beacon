@@ -56,14 +56,31 @@ jobs:
         with:
           enable-cache: true
 
-      - name: Install dependencies
+      - name: Install TA-Lib C-library locally
+        run: |
+          DEPS_DIR=${{ github.workspace }}/ta-lib-build
+          mkdir -p $DEPS_DIR
+          wget https://github.com/ta-lib/ta-lib/releases/download/v0.6.4/ta-lib-0.6.4-src.tar.gz -O ta-lib.tar.gz
+          tar -xzf ta-lib.tar.gz
+          cd ta-lib-0.6.4
+          ./configure --prefix=$DEPS_DIR
+          make
+          make install
+
+      - name: Install Python dependencies
         run: uv sync --all-extras --dev
+        env:
+          DEPS_DIR: ${{ github.workspace }}/ta-lib-build
+          CFLAGS: -I${{ github.workspace }}/ta-lib-build/include
+          LDFLAGS: -L${{ github.workspace }}/ta-lib-build/lib
 
       - name: Run Quality and Security Checks
         run: uv run pre-commit run --all-files --show-diff-on-failure
 
       - name: Run Tests
         run: uv run pytest tests/
+        env:
+          LD_LIBRARY_PATH: ${{ github.workspace }}/ta-lib-build/lib
 
   build-docker:
     name: Build Docker Image
